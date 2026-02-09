@@ -1,0 +1,177 @@
+/* GenUI Component Styles */
+.genui-empty,
+.genui-error {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+}
+
+/* Comparison Table */
+.comparison-table {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    border: 1px solid var(--border);
+}
+
+.comparison-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.comparison-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.highlight-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.plan-card {
+    background: var(--bg-darker);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 2px solid var(--border);
+    transition: all 0.2s;
+}
+
+.plan-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.plan-card.highlighted {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+}
+
+.plan-category {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: var(--radius-sm);
+    color: var(--primary-light);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.plan-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.plan-price {
+    margin-bottom: 16px;
+}
+
+.plan-price .currency {
+    font-size: 14px;
+    color: var(--text-secondary);
+    vertical-align: top;
+}
+
+.plan-price .amount {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary-light);
+}
+
+.plan-price .period {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.plan-data {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: var(--radius-md);
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.data-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--singtel-red-light);
+}
+
+.data-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.plan-details {
+    margin-bottom: 16px;
+}
+
+.plan-details .detail {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.plan-details .detail strong {
+    color: var(--text-primary);
+}
+
+.plan-features {
+    list-style: none;
+    margin-bottom: 20px;
+}
+
+.plan-features li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.plan-features li svg {
+    color: var(--success);
+}
+
+.plan-cta {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.plan-cta:hover {
+    opacity: 0.9;
+}
