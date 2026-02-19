@@ -302,12 +302,12 @@
     position: fixed;
     bottom: 80px;
     left: 20px;
-    width: 320px;
+    width: clamp(320px, 30vw, 420px);
     background: var(--bg-card);
     backdrop-filter: var(--blur-bg);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
-    padding: 16px;
+    padding: 20px;
     box-shadow: var(--shadow-lg);
     z-index: 1000;
 }
@@ -324,26 +324,30 @@
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    gap: 16px 12px;
     margin-bottom: 16px;
 }
 
 .metric {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .metric-label {
-    display: block;
     font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
-    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
 }
 
 .metric-value {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
+    word-break: break-word;
+    line-height: 1.4;
 }
 
 .metrics-footer {
