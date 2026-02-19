@@ -6,27 +6,33 @@
 // Intent patterns for classification
 const intentPatterns = [
     {
+        intent: 'compare_and_bundle',
+        keywords: ['bundle', 'combine', 'deal', 'package', 'compare', 'difference', 'together'],
+        components: ['ComparisonTable', 'BundleBuilder'],
+        description: 'Compare plans and build a bundle'
+    },
+    {
         intent: 'compare_plans',
         keywords: ['compare', 'vs', 'versus', 'difference', 'which plan', 'best plan', '5g', 'roaming', 'data plans'],
-        component: 'ComparisonTable',
+        components: ['ComparisonTable'],
         description: 'Compare mobile/data plans'
     },
     {
         intent: 'build_bundle',
         keywords: ['bundle', 'package', 'fiber', 'mobile', 'tv', 'combine', 'build', 'together', 'deal'],
-        component: 'BundleBuilder',
+        components: ['BundleBuilder'],
         description: 'Build custom bundle packages'
     },
     {
         intent: 'explain_bill',
         keywords: ['bill', 'charge', 'expensive', 'high', 'why', 'breakdown', 'shock', 'cost', 'payment'],
-        component: 'BillShockChart',
+        components: ['BillShockChart'],
         description: 'Explain billing breakdown'
     },
     {
         intent: 'troubleshoot',
         keywords: ['slow', 'problem', 'issue', 'not working', 'help', 'fix', 'internet', 'connection', 'error'],
-        component: 'TroubleshootingWidget',
+        components: ['TroubleshootingWidget'],
         description: 'Troubleshoot connectivity issues'
     }
 ];
@@ -37,6 +43,11 @@ function extractParameters(query, intent) {
     const lowerQuery = query.toLowerCase();
 
     switch (intent) {
+        case 'compare_and_bundle':
+            params.planTypes = ['5G', 'Roaming'];
+            params.includeServices = ['Fiber', 'Mobile'];
+            break;
+
         case 'compare_plans':
             params.planTypes = [];
             if (lowerQuery.includes('5g')) params.planTypes.push('5G');
@@ -103,7 +114,7 @@ export function classifyIntent(query) {
 
     const result = {
         intent: bestMatch.intent,
-        component: bestMatch.component,
+        components: bestMatch.components,
         confidence: Math.min(0.95, 0.6 + (highestScore * 0.1)),
         parameters: extractParameters(query, bestMatch.intent),
         processingTime: Math.round(processingTime),
@@ -123,7 +134,7 @@ export function classifyIntent(query) {
 export function getSupportedIntents() {
     return intentPatterns.map(p => ({
         intent: p.intent,
-        component: p.component,
+        components: p.components,
         description: p.description
     }));
 }

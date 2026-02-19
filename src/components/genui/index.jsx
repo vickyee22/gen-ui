@@ -16,25 +16,32 @@ const componentMap = {
 };
 
 export function GenUIRenderer({ payload }) {
-    if (!payload || !payload.component) {
+    if (!payload || !payload.components || payload.components.length === 0) {
         return null;
     }
 
-    const Component = componentMap[payload.component];
-
-    if (!Component) {
-        return (
-            <div className="genui-error">
-                Unknown component: {payload.component}
-            </div>
-        );
-    }
-
     return (
-        <Component
-            data={payload.data}
-            config={payload.renderConfig}
-        />
+        <div className={`genui-multi-wrapper ${payload.components.length > 1 ? 'grid' : 'single'}`}>
+            {payload.components.map((comp, idx) => {
+                const Component = componentMap[comp.name];
+
+                if (!Component) {
+                    return (
+                        <div key={idx} className="genui-error">
+                            Unknown component: {comp.name}
+                        </div>
+                    );
+                }
+
+                return (
+                    <Component
+                        key={`${comp.name}-${idx}`}
+                        data={comp.data}
+                        config={comp.config}
+                    />
+                );
+            })}
+        </div>
     );
 }
 

@@ -183,3 +183,23 @@ body {
   padding-right: 40px;
   justify-content: flex-end;
 }
+
+/* GenUI Multi-Component Layout */
+.genui-multi-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.genui-multi-wrapper.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .genui-multi-wrapper.grid {
+    grid-template-columns: 1fr;
+  }
+}

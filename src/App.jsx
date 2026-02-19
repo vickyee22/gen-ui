@@ -49,13 +49,15 @@ function App() {
 
       const totalTime = Math.round(performance.now() - totalStartTime);
 
+      const maxHydrationTime = result.components ? Math.max(...result.components.map(c => c.data?.latency || 0)) : 0;
+
       setMetrics({
         intent: intentResult.intent,
-        component: result.component,
+        components: result.components.map(c => c.name),
         confidence: intentResult.confidence,
         intentTime: intentResult.processingTime,
         orchestrationTime: result.orchestrationTime,
-        hydrationTime: result.data?.latency || 0,
+        hydrationTime: maxHydrationTime,
         totalTime,
         fromCache: result.fromCache,
         cacheStats: getCacheStats()
@@ -216,8 +218,8 @@ function App() {
               <span className="metric-value">{metrics.intent}</span>
             </div>
             <div className="metric">
-              <span className="metric-label">Component</span>
-              <span className="metric-value">{metrics.component}</span>
+              <span className="metric-label">Components</span>
+              <span className="metric-value">{metrics.components.join(', ')}</span>
             </div>
             <div className="metric">
               <span className="metric-label">Confidence</span>
