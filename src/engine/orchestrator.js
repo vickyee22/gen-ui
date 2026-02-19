@@ -42,17 +42,21 @@ export async function orchestrate(intentResult, channel = 'web') {
         componentCache.delete(cacheKey);
     }
 
-    // Fetch data for the component
-    const componentData = await hydrateComponent(
-        intentResult.component,
-        intentResult.parameters
-    );
+    // Fetch data and config for all components
+    const componentSpecs = await Promise.all(intentResult.components.map(async (compName) => {
+        const data = await hydrateComponent(compName, intentResult.parameters);
+        const config = getChannelConfig(compName, channel);
+        return {
+            name: compName,
+            data,
+            config
+        };
+    }));
 
     // Build the payload
     const payload = {
-        component: intentResult.component,
+        components: componentSpecs,
         intent: intentResult.intent,
-        data: componentData,
         channel,
         metadata: {
             confidence: intentResult.confidence,
@@ -60,7 +64,6 @@ export async function orchestrate(intentResult, channel = 'web') {
             originalQuery: intentResult.originalQuery,
             parameters: intentResult.parameters
         },
-        renderConfig: getChannelConfig(intentResult.component, channel),
         fromCache: false,
         orchestrationTime: Math.round(performance.now() - startTime)
     };
