@@ -108,6 +108,8 @@ Rules (apply the FIRST matching rule):
 - parameters: extract relevant info e.g. { "planTypes": ["5G"], "issueType": "speed" }`;
 
 // Keyword fallback (used if Gemini is unavailable)
+// ORDER MATTERS: more specific / eForm patterns must come before broad plan/bill patterns
+// so that queries like "overcharged for roaming" match bill_waiver_form, not compare_plans
 const FALLBACK_PATTERNS = [
     {
         intent: 'greeting',
@@ -115,6 +117,38 @@ const FALLBACK_PATTERNS = [
         components: [],
         message: "Hi there! I can help you compare plans, build bundles, explain your bill, or troubleshoot connectivity issues. What would you like help with?"
     },
+    // eForms first — specific user actions that should not be confused with generic plan/bill queries
+    {
+        intent: 'bill_waiver_form',
+        keywords: ['overcharged', 'dispute', 'waive', 'wrong charge', 'incorrect charge', 'refund', 'billed incorrectly'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'bill_waiver', prefilled: {} }
+    },
+    {
+        intent: 'port_request_form',
+        keywords: ['port my number', 'transfer my number', 'switch provider', 'move my number', 'port to'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'port_request', prefilled: {} }
+    },
+    {
+        intent: 'technical_support_form',
+        keywords: ['raise a ticket', 'raise ticket', 'report a problem', 'technical issue', 'service down', 'lodge complaint'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'technical_support', prefilled: {} }
+    },
+    {
+        intent: 'feedback_form',
+        keywords: ['feedback', 'suggestion', 'leave a review', 'rate my experience', 'rate your service'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'feedback', prefilled: {} }
+    },
+    {
+        intent: 'contact_form',
+        keywords: ['talk to agent', 'speak to agent', 'contact support', 'reach customer service', 'speak to someone', 'talk to someone', 'agent', 'delivery'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'contact_us', prefilled: {} }
+    },
+    // Generic component patterns
     {
         intent: 'select_device',
         keywords: ['device', 'phone', 'smartphone', 'iphone', 'samsung', 'pixel', 'handset', 'select a device', 'choose a phone', 'buy a phone'],
@@ -127,13 +161,8 @@ const FALLBACK_PATTERNS = [
         components: ['ComparisonTable']
     },
     {
-        intent: 'compare_and_bundle',
-        keywords: ['bundle', 'combine', 'package', 'fiber and mobile', 'broadband and mobile'],
-        components: ['ComparisonTable', 'BundleBuilder']
-    },
-    {
         intent: 'build_bundle',
-        keywords: ['bundle', 'fiber', 'tv', 'broadband', 'home internet'],
+        keywords: ['bundle', 'fiber', 'tv', 'broadband', 'home internet', 'package deal'],
         components: ['BundleBuilder']
     },
     {
@@ -143,38 +172,8 @@ const FALLBACK_PATTERNS = [
     },
     {
         intent: 'troubleshoot',
-        keywords: ['slow', 'problem', 'issue', 'not working', 'help', 'fix', 'internet', 'connection', 'wifi', 'signal'],
+        keywords: ['slow', 'not working', 'fix', 'wifi', 'signal', 'no internet', 'connection dropping'],
         components: ['TroubleshootingWidget']
-    },
-    {
-        intent: 'bill_waiver_form',
-        keywords: ['overcharged', 'dispute', 'waive', 'wrong charge', 'incorrect charge', 'refund'],
-        components: ['DynamicForm'],
-        parameters: { formType: 'bill_waiver', prefilled: {}, aiContext: '' }
-    },
-    {
-        intent: 'technical_support_form',
-        keywords: ['report', 'ticket', 'raise', 'complaint', 'technical issue', 'service down'],
-        components: ['DynamicForm'],
-        parameters: { formType: 'technical_support', prefilled: {}, aiContext: '' }
-    },
-    {
-        intent: 'feedback_form',
-        keywords: ['feedback', 'suggestion', 'review', 'rate', 'experience'],
-        components: ['DynamicForm'],
-        parameters: { formType: 'feedback', prefilled: {}, aiContext: '' }
-    },
-    {
-        intent: 'port_request_form',
-        keywords: ['port', 'transfer my number', 'switch provider', 'move my number'],
-        components: ['DynamicForm'],
-        parameters: { formType: 'port_request', prefilled: {}, aiContext: '' }
-    },
-    {
-        intent: 'contact_form',
-        keywords: ['contact', 'speak to', 'reach', 'customer service', 'talk to', 'agent', 'delivery', 'enquiry', 'regarding'],
-        components: ['DynamicForm'],
-        parameters: { formType: 'contact_us', prefilled: {}, aiContext: '' }
     }
 ];
 
@@ -204,12 +203,23 @@ function keywordFallback(query) {
         };
     }
 
+    let parameters = { ...(bestMatch.parameters || {}) };
+
+    // For DynamicForm results, enrich parameters with context from the original query
+    if (bestMatch.components?.includes('DynamicForm')) {
+        parameters.aiContext = query;
+        // Prefill subject for contact_us so the form field isn't blank
+        if (parameters.formType === 'contact_us' && !parameters.prefilled?.subject) {
+            parameters.prefilled = { ...parameters.prefilled, subject: query };
+        }
+    }
+
     return {
         intent: bestMatch.intent,
         components: bestMatch.components,
         confidence: Math.min(0.95, 0.6 + highestScore * 0.1),
         message: bestMatch.message || null,
-        parameters: bestMatch.parameters || {},
+        parameters,
         processingTime: 0,
         description: bestMatch.intent,
         originalQuery: query
