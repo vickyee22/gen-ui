@@ -7,12 +7,14 @@ import { ComparisonTable } from './ComparisonTable';
 import { BundleBuilder } from './BundleBuilder';
 import { BillShockChart } from './BillShockChart';
 import { TroubleshootingWidget } from './TroubleshootingWidget';
+import { DynamicForm } from './DynamicForm';
 
 const componentMap = {
     ComparisonTable,
     BundleBuilder,
     BillShockChart,
-    TroubleshootingWidget
+    TroubleshootingWidget,
+    DynamicForm
 };
 
 export function GenUIRenderer({ payload }) {
@@ -45,4 +47,4 @@ export function GenUIRenderer({ payload }) {
     );
 }
 
-export { ComparisonTable, BundleBuilder, BillShockChart, TroubleshootingWidget };
+export { ComparisonTable, BundleBuilder, BillShockChart, TroubleshootingWidget, DynamicForm };

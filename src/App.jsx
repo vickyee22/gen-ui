@@ -17,8 +17,9 @@ import './index.css';
 // Demo suggestions
 const SUGGESTIONS = [
   "Compare 5G plans with roaming",
-  "Build me a bundle with fiber and mobile",
+  "I was overcharged $45 for roaming last month",
   "Why is my bill so high this month?",
+  "Port my number to NovaTel",
   "My internet is slow"
 ];
 
