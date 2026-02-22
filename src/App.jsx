@@ -49,11 +49,11 @@ function App() {
 
       const totalTime = Math.round(performance.now() - totalStartTime);
 
-      const maxHydrationTime = result.components ? Math.max(...result.components.map(c => c.data?.latency || 0)) : 0;
+      const maxHydrationTime = result.components?.length > 0 ? Math.max(...result.components.map(c => c.data?.latency || 0)) : 0;
 
       setMetrics({
         intent: intentResult.intent,
-        components: result.components.map(c => c.name),
+        components: result.components?.map(c => c.name) || [],
         confidence: intentResult.confidence,
         intentTime: intentResult.processingTime,
         orchestrationTime: result.orchestrationTime,
@@ -87,7 +87,19 @@ function App() {
       isProcessing
     };
 
-    const genUIContent = payload ? <GenUIRenderer payload={payload} /> : null;
+    const genUIContent = payload
+      ? payload.message
+        ? (
+          <motion.div
+            className="text-response"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {payload.message}
+          </motion.div>
+        )
+        : <GenUIRenderer payload={payload} />
+      : null;
 
     switch (channel) {
       case 'mobile':
@@ -219,7 +231,7 @@ function App() {
             </div>
             <div className="metric">
               <span className="metric-label">Components</span>
-              <span className="metric-value">{metrics.components.join(', ')}</span>
+              <span className="metric-value">{metrics.components.length > 0 ? metrics.components.join(', ') : 'None'}</span>
             </div>
             <div className="metric">
               <span className="metric-label">Confidence</span>

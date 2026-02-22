@@ -359,6 +359,20 @@
     color: var(--text-secondary);
 }
 
+/* Text Response (greeting / fallback) */
+.text-response {
+    padding: 20px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 24px auto;
+    backdrop-filter: var(--blur-bg);
+}
+
 /* Demo Info Bar */
 .demo-info {
     position: fixed;

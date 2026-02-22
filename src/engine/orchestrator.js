@@ -42,6 +42,28 @@ export async function orchestrate(intentResult, channel = 'web') {
         componentCache.delete(cacheKey);
     }
 
+    // Handle greeting and fallback — return a text message, no components
+    const textOnlyMessages = {
+        greeting: "Hi there! I can help you compare plans, build bundles, explain your bill, or troubleshoot connectivity issues. What would you like help with?",
+        fallback: "I'm not sure I understood that. Try asking me to compare plans, build a bundle, explain your bill, or help with a connectivity issue."
+    };
+    if (textOnlyMessages[intentResult.intent]) {
+        return {
+            components: [],
+            message: textOnlyMessages[intentResult.intent],
+            intent: intentResult.intent,
+            channel,
+            metadata: {
+                confidence: intentResult.confidence,
+                description: intentResult.description,
+                originalQuery: intentResult.originalQuery,
+                parameters: intentResult.parameters
+            },
+            fromCache: false,
+            orchestrationTime: Math.round(performance.now() - startTime)
+        };
+    }
+
     // Fetch data and config for all components
     const componentSpecs = await Promise.all(intentResult.components.map(async (compName) => {
         const data = await hydrateComponent(compName, intentResult.parameters);
