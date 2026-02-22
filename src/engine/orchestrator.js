@@ -42,15 +42,12 @@ export async function orchestrate(intentResult, channel = 'web') {
         componentCache.delete(cacheKey);
     }
 
-    // Handle greeting and fallback — return a text message, no components
-    const textOnlyMessages = {
-        greeting: "Hi there! I can help you compare plans, build bundles, explain your bill, or troubleshoot connectivity issues. What would you like help with?",
-        fallback: "I'm not sure I understood that. Try asking me to compare plans, build a bundle, explain your bill, or help with a connectivity issue."
-    };
-    if (textOnlyMessages[intentResult.intent]) {
+    // If the classifier returned no components (greeting, fallback, or AI decision),
+    // return the message directly without hydrating anything
+    if (!intentResult.components || intentResult.components.length === 0) {
         return {
             components: [],
-            message: textOnlyMessages[intentResult.intent],
+            message: intentResult.message || "I'm not sure I understood that. Try asking about plans, bundles, bills, or connectivity issues.",
             intent: intentResult.intent,
             channel,
             metadata: {
