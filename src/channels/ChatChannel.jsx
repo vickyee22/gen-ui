@@ -12,7 +12,7 @@ export function ChatChannel({ children, query, onQueryChange, onSubmit, suggesti
         {
             id: 1,
             type: 'bot',
-            content: "Hi! I'm your Singtel assistant. How can I help you today?",
+            content: "Hi! I'm your NovaTel assistant. How can I help you today?",
             timestamp: new Date()
         }
     ]);
@@ -72,7 +72,7 @@ export function ChatChannel({ children, query, onQueryChange, onSubmit, suggesti
                     <Bot size={24} />
                 </div>
                 <div className="chat-info">
-                    <span className="chat-name">Singtel Assistant</span>
+                    <span className="chat-name">NovaTel Assistant</span>
                     <span className="chat-status">
                         <span className="status-dot"></span>
                         Online

@@ -6,6 +6,12 @@
 // Intent patterns for classification
 const intentPatterns = [
     {
+        intent: 'greeting',
+        keywords: ['hello', 'hi', 'hey', 'howdy', 'greetings', 'good morning', 'good afternoon', 'good evening', 'sup', 'yo'],
+        components: [],
+        description: 'Greeting message'
+    },
+    {
         intent: 'compare_and_bundle',
         keywords: ['bundle', 'combine', 'deal', 'package', 'compare', 'difference', 'together'],
         components: ['ComparisonTable', 'BundleBuilder'],
@@ -107,9 +113,13 @@ export function classifyIntent(query) {
         }
     }
 
-    // Default to comparison if no match
+    // Default to fallback if no match
     if (!bestMatch || highestScore === 0) {
-        bestMatch = intentPatterns[0];
+        bestMatch = {
+            intent: 'fallback',
+            components: [],
+            description: 'Unknown query — ask something about plans, bills, or support'
+        };
     }
 
     const result = {

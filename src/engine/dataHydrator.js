@@ -124,7 +124,7 @@ const troubleshootingSteps = {
             {
                 id: 3,
                 title: 'Run Speed Test',
-                description: 'Visit speedtest.singtel.com to check your current speed.',
+                description: 'Visit speedtest.novattel.com to check your current speed.',
                 action: 'Compare with your plan speed'
             },
             {
