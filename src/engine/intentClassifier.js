@@ -86,19 +86,24 @@ Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
   "parameters": {}
 }
 
-Rules:
-- Greetings (hello, hi, hey, good morning): components=[], friendly welcome message
-- Plan discovery or comparison queries: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
-- Device / phone selection queries (select a device, choose a phone, compare phones): ComparisonTable, parameters: { planTypes: ["Device"] }
-- Bundle / package queries: BundleBuilder
-- Bill or charge queries: BillShockChart
-- Connectivity / speed issues: TroubleshootingWidget
-- Queries needing plans AND bundles: both ComparisonTable and BundleBuilder
-- eForm / request / complaint queries: DynamicForm with parameters: { formType, prefilled: {fieldId: value}, aiContext: "original query snippet" }
-  - formType options: bill_waiver | technical_support | feedback | contact_us | port_request
-  - prefilled: extract any relevant values from the query (e.g. amount, reason, issueType, period, service)
-  - Example: "I was overcharged $45 for roaming last month" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45", period: "jan-2026", reason: "Overcharged for roaming" }
-- Anything else unrelated to telco: components=[], helpful fallback message
+Rules (apply the FIRST matching rule):
+1. Greetings (hello, hi, hey, good morning): components=[], friendly welcome message
+2. Bill disputes, overcharges, waiver requests, wrong/unexpected charges: DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these
+3. Contact agent / talk to someone / delivery issue / complaint about order or service: DynamicForm, formType: "contact_us", prefilled: { subject: "<extracted topic>" }
+4. Technical support request / raise ticket / report a problem: DynamicForm, formType: "technical_support"
+5. Feedback / review / rate experience: DynamicForm, formType: "feedback"
+6. Port / transfer number / switch provider: DynamicForm, formType: "port_request"
+7. eForm parameters for DynamicForm: { formType, prefilled: {fieldId: value}, aiContext: "original query snippet" }
+   - prefilled: extract values from the query (e.g. amount, reason, issueType, period, subject, service)
+   - Example: "I was overcharged $45 for roaming last month" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45", period: "jan-2026", reason: "Overcharged for roaming" }
+   - Example: "talk to agent about device delivery" → formType: "contact_us", prefilled: { subject: "Device delivery enquiry" }
+8. Bill explanation / why is my bill high / bill breakdown (NOT a dispute): BillShockChart
+9. Connectivity / speed issues: TroubleshootingWidget
+10. Device / phone selection queries (select a device, choose a phone, compare phones): ComparisonTable, parameters: { planTypes: ["Device"] }
+11. Plan discovery or comparison: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+12. Bundle-only queries (build a bundle, home internet + mobile package): BundleBuilder ONLY — do NOT add ComparisonTable unless user explicitly also asks to compare plans
+13. User explicitly asks to compare plans AND build a bundle in the same query: ComparisonTable + BundleBuilder
+14. Anything else unrelated to telco: components=[], helpful fallback message
 - confidence: 0.0–1.0 based on how clearly the query maps to a component
 - parameters: extract relevant info e.g. { "planTypes": ["5G"], "issueType": "speed" }`;
 
@@ -133,7 +138,7 @@ const FALLBACK_PATTERNS = [
     },
     {
         intent: 'explain_bill',
-        keywords: ['bill', 'charge', 'expensive', 'high', 'breakdown', 'shock', 'cost'],
+        keywords: ['bill', 'expensive', 'high bill', 'breakdown', 'shock', 'why is my bill'],
         components: ['BillShockChart']
     },
     {
@@ -167,7 +172,7 @@ const FALLBACK_PATTERNS = [
     },
     {
         intent: 'contact_form',
-        keywords: ['contact', 'speak to', 'reach', 'customer service', 'talk to'],
+        keywords: ['contact', 'speak to', 'reach', 'customer service', 'talk to', 'agent', 'delivery', 'enquiry', 'regarding'],
         components: ['DynamicForm'],
         parameters: { formType: 'contact_us', prefilled: {}, aiContext: '' }
     }
