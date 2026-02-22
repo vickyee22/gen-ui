@@ -41,7 +41,7 @@ function App() {
     const totalStartTime = performance.now();
 
     try {
-      // Step 1: Classify Intent (simulated LLM)
+      // Step 1: Classify Intent (Gemini AI)
       const intentResult = await classifyIntent(query);
 
       // Step 2: Orchestrate (component selection + data hydration)
