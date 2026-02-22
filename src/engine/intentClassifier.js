@@ -10,12 +10,15 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
 const COMPONENT_REGISTRY = [
     {
         name: 'ComparisonTable',
-        description: 'Side-by-side comparison of mobile and data plans',
+        description: 'Side-by-side comparison of mobile plans OR devices/phones. Pass parameters.planTypes=["Device"] for device queries, or planTypes=["5G","Roaming"] for plan queries.',
         handles: [
             'looking for a plan', 'need a phone plan', 'compare plans',
             'which plan is best', 'show me plans', 'cheapest plan',
             '5G plan', 'roaming plan', 'data plan', 'plan options',
-            'what plans do you have', 'recommend a plan'
+            'what plans do you have', 'recommend a plan',
+            'select a device', 'choose a phone', 'compare phones',
+            'which phone', 'best smartphone', 'new phone', 'buy a device',
+            'iPhone vs Samsung', 'compare devices'
         ]
     },
     {
@@ -66,14 +69,15 @@ Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
 
 Rules:
 - Greetings (hello, hi, hey, good morning): components=[], friendly welcome message
-- Plan discovery or comparison queries: ComparisonTable
+- Plan discovery or comparison queries: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+- Device / phone selection queries (select a device, choose a phone, compare phones): ComparisonTable, parameters: { planTypes: ["Device"] }
 - Bundle / package queries: BundleBuilder
 - Bill or charge queries: BillShockChart
 - Connectivity / speed issues: TroubleshootingWidget
 - Queries needing plans AND bundles: both ComparisonTable and BundleBuilder
 - Anything else unrelated to telco: components=[], helpful fallback message
 - confidence: 0.0–1.0 based on how clearly the query maps to a component
-- parameters: extract relevant info e.g. { "planType": "5G", "issueType": "speed" }`;
+- parameters: extract relevant info e.g. { "planTypes": ["5G"], "issueType": "speed" }`;
 
 // Keyword fallback (used if Gemini is unavailable)
 const FALLBACK_PATTERNS = [
@@ -84,8 +88,14 @@ const FALLBACK_PATTERNS = [
         message: "Hi there! I can help you compare plans, build bundles, explain your bill, or troubleshoot connectivity issues. What would you like help with?"
     },
     {
+        intent: 'select_device',
+        keywords: ['device', 'phone', 'smartphone', 'iphone', 'samsung', 'pixel', 'handset', 'select a device', 'choose a phone', 'buy a phone'],
+        components: ['ComparisonTable'],
+        parameters: { planTypes: ['Device'] }
+    },
+    {
         intent: 'compare_plans',
-        keywords: ['compare', 'plan', 'phone', 'mobile', '5g', 'roaming', 'data', 'cheapest', 'best', 'looking for', 'need a', 'show me', 'recommend'],
+        keywords: ['compare', 'plan', 'mobile plan', '5g', 'roaming', 'data plan', 'cheapest plan', 'best plan', 'looking for a plan', 'need a plan', 'show me plans', 'recommend'],
         components: ['ComparisonTable']
     },
     {
@@ -141,7 +151,7 @@ function keywordFallback(query) {
         components: bestMatch.components,
         confidence: Math.min(0.95, 0.6 + highestScore * 0.1),
         message: bestMatch.message || null,
-        parameters: {},
+        parameters: bestMatch.parameters || {},
         processingTime: 0,
         description: bestMatch.intent,
         originalQuery: query

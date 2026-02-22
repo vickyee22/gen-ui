@@ -56,6 +56,36 @@ const mobilePlans = {
     ]
 };
 
+// Mock data for devices
+const deviceCatalog = {
+    'Device': [
+        {
+            name: 'iPhone 16 Pro',
+            data: '256GB',
+            speed: '5G',
+            price: 65.90,
+            category: 'Flagship',
+            features: ['A18 Pro Chip', '48MP ProCamera System', '6.3" Super Retina XDR', 'All-day battery', 'Titanium design']
+        },
+        {
+            name: 'Samsung S25 Ultra',
+            data: '512GB',
+            speed: '5G',
+            price: 72.90,
+            category: 'Flagship',
+            features: ['Snapdragon 8 Elite', '200MP AI Camera', '6.9" QHD+ Display', 'Built-in S Pen', '5000mAh battery']
+        },
+        {
+            name: 'Google Pixel 9 Pro',
+            data: '256GB',
+            speed: '5G',
+            price: 55.90,
+            category: 'Flagship',
+            features: ['Google Tensor G4', '50MP Triple Camera', '6.3" LTPO OLED', 'Google AI features', '7 years of updates']
+        }
+    ]
+};
+
 // Mock data for bundles
 const bundleOptions = {
     Fiber: [
@@ -260,18 +290,24 @@ export async function hydrateComponent(component, parameters) {
 
 function hydrateComparisonTable(params) {
     const { planTypes = ['5G', 'Roaming'] } = params;
+    const isDeviceQuery = planTypes.includes('Device');
     const plans = [];
 
     for (const type of planTypes) {
         if (mobilePlans[type]) {
             plans.push(...mobilePlans[type].map(p => ({ ...p, category: type })));
         }
+        if (deviceCatalog[type]) {
+            plans.push(...deviceCatalog[type].map(p => ({ ...p, category: p.category })));
+        }
     }
 
     return {
-        title: `Compare ${planTypes.join(' & ')} Plans`,
+        title: isDeviceQuery ? 'Compare Devices' : `Compare ${planTypes.join(' & ')} Plans`,
         plans,
-        highlighted: plans.length > 0 ? plans[Math.floor(plans.length / 2)].name : null
+        highlighted: plans.length > 0 ? plans[Math.floor(plans.length / 2)].name : null,
+        metricLabel: isDeviceQuery ? 'Storage' : 'Data',
+        ctaLabel: isDeviceQuery ? 'Select Device' : 'Select Plan'
     };
 }
 

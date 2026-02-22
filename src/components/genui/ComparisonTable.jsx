@@ -66,7 +66,7 @@ export function ComparisonTable({ data, config = {} }) {
 
                         <div className="plan-data">
                             <span className="data-value">{plan.data}</span>
-                            <span className="data-label">Data</span>
+                            <span className="data-label">{data.metricLabel || 'Data'}</span>
                         </div>
 
                         {showDetails && (
@@ -90,7 +90,7 @@ export function ComparisonTable({ data, config = {} }) {
                         )}
 
                         <button className="plan-cta">
-                            {plan.name === data.highlighted ? 'Best Choice' : 'Select Plan'}
+                            {plan.name === data.highlighted ? 'Best Choice' : (data.ctaLabel || 'Select Plan')}
                         </button>
                     </MotionDiv>
                 ))}
