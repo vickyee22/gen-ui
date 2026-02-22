@@ -251,6 +251,107 @@ const troubleshootingSteps = {
     }
 };
 
+// eForm templates
+const formTemplates = {
+    bill_waiver: {
+        formType: 'bill_waiver',
+        title: 'Bill Waiver Request',
+        description: 'Request a waiver or dispute a charge on your bill',
+        submitLabel: 'Submit Waiver Request',
+        successMessage: 'Your waiver request has been submitted and will be reviewed within 2 business days.',
+        fields: [
+            { id: 'account', label: 'Account Number', type: 'text', required: true, placeholder: 'e.g. NVT-123456' },
+            { id: 'period', label: 'Billing Period', type: 'select', required: true, options: [
+                { value: 'jan-2026', label: 'January 2026' },
+                { value: 'dec-2025', label: 'December 2025' },
+                { value: 'nov-2025', label: 'November 2025' }
+            ]},
+            { id: 'issueType', label: 'Charge Type', type: 'select', required: true, options: [
+                { value: 'roaming', label: 'Roaming Charges' },
+                { value: 'overage', label: 'Data Overage' },
+                { value: 'addon', label: 'Unwanted Add-on' },
+                { value: 'duplicate', label: 'Duplicate Charge' },
+                { value: 'other', label: 'Other' }
+            ]},
+            { id: 'amount', label: 'Disputed Amount ($)', type: 'number', required: true, placeholder: 'e.g. 45.00' },
+            { id: 'reason', label: 'Reason for Waiver', type: 'textarea', required: true, placeholder: 'Describe what happened...' }
+        ]
+    },
+    technical_support: {
+        formType: 'technical_support',
+        title: 'Technical Support Request',
+        description: 'Report a technical issue with your service',
+        submitLabel: 'Submit Support Request',
+        successMessage: 'A technician will contact you within 4 hours.',
+        fields: [
+            { id: 'service', label: 'Affected Service', type: 'select', required: true, options: [
+                { value: 'fiber', label: 'Home Fibre' },
+                { value: 'mobile', label: 'Mobile' },
+                { value: 'tv', label: 'TV / CAST' }
+            ]},
+            { id: 'issue', label: 'Issue Description', type: 'textarea', required: true, placeholder: 'Describe the problem...' },
+            { id: 'since', label: 'Issue Started', type: 'date', required: true },
+            { id: 'contact', label: 'Contact Number', type: 'text', required: true, placeholder: 'e.g. 9123 4567' }
+        ]
+    },
+    feedback: {
+        formType: 'feedback',
+        title: 'Share Your Feedback',
+        description: 'Help us improve your NovaTel experience',
+        submitLabel: 'Send Feedback',
+        successMessage: 'Thank you! Your feedback helps us serve you better.',
+        fields: [
+            { id: 'category', label: 'Feedback Category', type: 'select', required: true, options: [
+                { value: 'network', label: 'Network Quality' },
+                { value: 'app', label: 'App Experience' },
+                { value: 'billing', label: 'Billing' },
+                { value: 'support', label: 'Customer Support' },
+                { value: 'general', label: 'General' }
+            ]},
+            { id: 'rating', label: 'Overall Rating', type: 'stars', required: true },
+            { id: 'title', label: 'Subject', type: 'text', required: false, placeholder: 'Brief summary...' },
+            { id: 'message', label: 'Your Feedback', type: 'textarea', required: true, placeholder: 'Tell us more...' }
+        ]
+    },
+    contact_us: {
+        formType: 'contact_us',
+        title: 'Contact Us',
+        description: 'Get in touch with our team',
+        submitLabel: 'Send Message',
+        successMessage: "We'll get back to you within 1 business day.",
+        fields: [
+            { id: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'Your name' },
+            { id: 'email', label: 'Email Address', type: 'text', required: true, placeholder: 'your@email.com' },
+            { id: 'phone', label: 'Phone Number', type: 'text', required: false, placeholder: 'Optional' },
+            { id: 'subject', label: 'Subject', type: 'text', required: true, placeholder: 'What is this regarding?' },
+            { id: 'message', label: 'Message', type: 'textarea', required: true, placeholder: 'How can we help?' }
+        ]
+    },
+    port_request: {
+        formType: 'port_request',
+        title: 'Number Port Request',
+        description: 'Transfer your existing number to NovaTel',
+        submitLabel: 'Submit Port Request',
+        successMessage: 'Your port request is being processed. Transfer will complete within 1 business day.',
+        fields: [
+            { id: 'number', label: 'Mobile Number to Port', type: 'text', required: true, placeholder: 'e.g. 9123 4567' },
+            { id: 'provider', label: 'Current Provider', type: 'select', required: true, options: [
+                { value: 'starhub', label: 'StarHub' },
+                { value: 'm1', label: 'M1' },
+                { value: 'circles', label: 'Circles.Life' },
+                { value: 'tpg', label: 'TPG' },
+                { value: 'other', label: 'Other' }
+            ]},
+            { id: 'plan', label: 'New NovaTel Plan', type: 'select', required: true, options: [
+                { value: 'xo75', label: 'XO 75 — $75.90/mo' },
+                { value: 'xo98', label: 'XO 98 — $98.90/mo' },
+                { value: 'xo128', label: 'XO 128 — $128.90/mo' }
+            ]},
+            { id: 'date', label: 'Preferred Transfer Date', type: 'date', required: true }
+        ]
+    }
+};
+
 /**
  * Hydrate component with required data
  */
@@ -274,6 +375,9 @@ export async function hydrateComponent(component, parameters) {
                     break;
                 case 'TroubleshootingWidget':
                     data = hydrateTroubleshootingWidget(parameters);
+                    break;
+                case 'DynamicForm':
+                    data = hydrateDynamicForm(parameters);
                     break;
                 default:
                     data = { error: 'Unknown component' };
@@ -347,6 +451,22 @@ function hydrateBillShockChart(params) {
             percentChange: Math.round(((data.total - billingData.previous.total) / billingData.previous.total) * 100)
         } : null
     };
+}
+
+function hydrateDynamicForm(params) {
+    const { formType = 'contact_us', prefilled = {}, aiContext = '' } = params;
+    const template = formTemplates[formType] || formTemplates.contact_us;
+
+    // Merge AI-extracted prefilled values into field definitions
+    const fields = template.fields.map(field => {
+        const prefilledValue = prefilled[field.id];
+        if (prefilledValue) {
+            return { ...field, prefilled: prefilledValue, aiExtracted: true };
+        }
+        return field;
+    });
+
+    return { ...template, fields, aiContext };
 }
 
 function hydrateTroubleshootingWidget(params) {

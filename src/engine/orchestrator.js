@@ -120,6 +120,11 @@ function getChannelConfig(component, channel) {
             web: { stepLayout: 'accordion', showImages: true },
             mobile: { stepLayout: 'carousel', showImages: true },
             chat: { stepLayout: 'sequential', showImages: false }
+        },
+        DynamicForm: {
+            web: { compact: false },
+            mobile: { compact: false },
+            chat: { compact: true }
         }
     };
 

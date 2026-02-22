@@ -47,6 +47,25 @@ const COMPONENT_REGISTRY = [
             'cannot connect', 'network down', 'connection dropping',
             'speed issue', 'no signal'
         ]
+    },
+    {
+        name: 'DynamicForm',
+        description: 'AI-powered dynamic eForm that renders the right fields and pre-fills them from user context. Use for: bill disputes/waivers, technical support requests, feedback, contact us, number port requests.',
+        handles: [
+            'waive my bill', 'dispute charge', 'overcharged', 'wrong charge',
+            'submit a complaint', 'raise a complaint', 'I have a complaint',
+            'technical issue', 'report a problem', 'raise a ticket',
+            'give feedback', 'leave a review', 'rate my experience',
+            'contact support', 'speak to someone', 'reach customer service',
+            'port my number', 'transfer my number', 'switch to NovaTel'
+        ],
+        formTypes: {
+            bill_waiver: 'overcharged, wrong charge, dispute bill, waive fee',
+            technical_support: 'technical issue, service not working, report problem',
+            feedback: 'feedback, suggestion, review, rate experience',
+            contact_us: 'contact, speak to agent, reach support',
+            port_request: 'port number, transfer number, switch provider'
+        }
     }
 ];
 
@@ -75,6 +94,10 @@ Rules:
 - Bill or charge queries: BillShockChart
 - Connectivity / speed issues: TroubleshootingWidget
 - Queries needing plans AND bundles: both ComparisonTable and BundleBuilder
+- eForm / request / complaint queries: DynamicForm with parameters: { formType, prefilled: {fieldId: value}, aiContext: "original query snippet" }
+  - formType options: bill_waiver | technical_support | feedback | contact_us | port_request
+  - prefilled: extract any relevant values from the query (e.g. amount, reason, issueType, period, service)
+  - Example: "I was overcharged $45 for roaming last month" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45", period: "jan-2026", reason: "Overcharged for roaming" }
 - Anything else unrelated to telco: components=[], helpful fallback message
 - confidence: 0.0–1.0 based on how clearly the query maps to a component
 - parameters: extract relevant info e.g. { "planTypes": ["5G"], "issueType": "speed" }`;
@@ -117,6 +140,36 @@ const FALLBACK_PATTERNS = [
         intent: 'troubleshoot',
         keywords: ['slow', 'problem', 'issue', 'not working', 'help', 'fix', 'internet', 'connection', 'wifi', 'signal'],
         components: ['TroubleshootingWidget']
+    },
+    {
+        intent: 'bill_waiver_form',
+        keywords: ['overcharged', 'dispute', 'waive', 'wrong charge', 'incorrect charge', 'refund'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'bill_waiver', prefilled: {}, aiContext: '' }
+    },
+    {
+        intent: 'technical_support_form',
+        keywords: ['report', 'ticket', 'raise', 'complaint', 'technical issue', 'service down'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'technical_support', prefilled: {}, aiContext: '' }
+    },
+    {
+        intent: 'feedback_form',
+        keywords: ['feedback', 'suggestion', 'review', 'rate', 'experience'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'feedback', prefilled: {}, aiContext: '' }
+    },
+    {
+        intent: 'port_request_form',
+        keywords: ['port', 'transfer my number', 'switch provider', 'move my number'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'port_request', prefilled: {}, aiContext: '' }
+    },
+    {
+        intent: 'contact_form',
+        keywords: ['contact', 'speak to', 'reach', 'customer service', 'talk to'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'contact_us', prefilled: {}, aiContext: '' }
     }
 ];
 
