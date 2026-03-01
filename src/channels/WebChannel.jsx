@@ -1,6 +1,6 @@
 /**
- * WebChannel - Shop.singtel.com-inspired interface
- * Desktop/tablet view with Singtel branding
+ * WebChannel - NovaTel web portal interface
+ * Desktop/tablet view
  */
 
 import { motion } from 'framer-motion';

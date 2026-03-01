@@ -1,6 +1,6 @@
 /**
  * GenUI POC - Design System
- * Singtel Brand Colors with Premium Glassmorphism Effects
+ * NovaTel Brand Colors with Premium Glassmorphism Effects
  */
 @import './styles/channels.css';
 @import './styles/chat.css';
@@ -12,9 +12,9 @@
 
 /* CSS Variables - Design Tokens */
 :root {
-  --singtel-red: #ed1c24;
-  --singtel-red-dark: #c41017;
-  --singtel-red-light: #ff4d52;
+  --brand: #0d9488;
+  --brand-dark: #0f766e;
+  --brand-light: #2dd4bf;
   --primary: #6366f1;
   --primary-dark: #4f46e5;
   --primary-light: #818cf8;

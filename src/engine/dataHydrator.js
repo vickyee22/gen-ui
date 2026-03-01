@@ -7,7 +7,7 @@
 const mobilePlans = {
     '5G': [
         {
-            name: 'XO 75',
+            name: 'Nova 75',
             data: '60GB',
             speed: '5G',
             price: 75.90,
@@ -16,7 +16,7 @@ const mobilePlans = {
             features: ['5G Network', 'Data Rollover', 'Caller ID']
         },
         {
-            name: 'XO 98',
+            name: 'Nova 98',
             data: '100GB',
             speed: '5G Plus',
             price: 98.90,
@@ -25,7 +25,7 @@ const mobilePlans = {
             features: ['5G Plus Network', 'Data Rollover', 'International Calls 100min']
         },
         {
-            name: 'XO 128',
+            name: 'Nova 128',
             data: 'Unlimited',
             speed: '5G Ultra',
             price: 128.90,
@@ -95,13 +95,13 @@ const bundleOptions = {
     ],
     Mobile: [
         { id: 'mobile-sim', name: 'SIM Only 20GB', price: 25.90, data: '20GB', features: ['5G Ready', 'Unlimited Calls'] },
-        { id: 'mobile-xo', name: 'XO 75 Plan', price: 75.90, data: '60GB', features: ['5G Network', 'Data Rollover'] },
-        { id: 'mobile-max', name: 'XO Unlimited', price: 128.90, data: 'Unlimited', features: ['5G Ultra', 'Hotspot'] }
+        { id: 'mobile-nova', name: 'Nova 75 Plan', price: 75.90, data: '60GB', features: ['5G Network', 'Data Rollover'] },
+        { id: 'mobile-max', name: 'Nova Unlimited', price: 128.90, data: 'Unlimited', features: ['5G Ultra', 'Hotspot'] }
     ],
     TV: [
-        { id: 'tv-basic', name: 'CAST Basic', price: 14.90, channels: '50+', features: ['HD Streaming', 'On-Demand'] },
-        { id: 'tv-plus', name: 'CAST Plus', price: 29.90, channels: '100+', features: ['4K Streaming', 'Sports Pack'] },
-        { id: 'tv-premium', name: 'CAST Premium', price: 49.90, channels: '200+', features: ['4K HDR', 'All Packs', 'Multi-Room'] }
+        { id: 'tv-basic', name: 'Stream Basic', price: 14.90, channels: '50+', features: ['HD Streaming', 'On-Demand'] },
+        { id: 'tv-plus', name: 'Stream Plus', price: 29.90, channels: '100+', features: ['4K Streaming', 'Sports Pack'] },
+        { id: 'tv-premium', name: 'Stream Premium', price: 49.90, channels: '200+', features: ['4K HDR', 'All Packs', 'Multi-Room'] }
     ]
 };
 
@@ -111,11 +111,11 @@ const billingData = {
         period: 'January 2026',
         total: 287.45,
         breakdown: [
-            { category: 'Base Plan', amount: 98.90, description: 'XO 98 Monthly Plan' },
+            { category: 'Base Plan', amount: 98.90, description: 'Nova 98 Monthly Plan' },
             { category: 'Data Overage', amount: 45.00, description: '15GB excess @ $3/GB' },
             { category: 'Roaming', amount: 89.55, description: 'Japan trip - 3 days' },
-            { category: 'Add-ons', amount: 14.90, description: 'CAST Basic TV' },
-            { category: 'Taxes & Fees', amount: 39.10, description: 'GST 9%' }
+            { category: 'Add-ons', amount: 14.90, description: 'Stream Basic TV' },
+            { category: 'Taxes & Fees', amount: 39.10, description: 'Tax (9%)' }
         ],
         previousBill: 156.80,
         anomalies: ['Data Overage', 'Roaming']
@@ -124,10 +124,10 @@ const billingData = {
         period: 'December 2025',
         total: 156.80,
         breakdown: [
-            { category: 'Base Plan', amount: 98.90, description: 'XO 98 Monthly Plan' },
-            { category: 'Add-ons', amount: 14.90, description: 'CAST Basic TV' },
+            { category: 'Base Plan', amount: 98.90, description: 'Nova 98 Monthly Plan' },
+            { category: 'Add-ons', amount: 14.90, description: 'Stream Basic TV' },
             { category: 'Discounts', amount: -15.00, description: 'Loyalty Discount' },
-            { category: 'Taxes & Fees', amount: 58.00, description: 'GST 9%' }
+            { category: 'Taxes & Fees', amount: 58.00, description: 'Tax (9%)' }
         ],
         anomalies: []
     }
@@ -287,7 +287,7 @@ const formTemplates = {
             { id: 'service', label: 'Affected Service', type: 'select', required: true, options: [
                 { value: 'fiber', label: 'Home Fibre' },
                 { value: 'mobile', label: 'Mobile' },
-                { value: 'tv', label: 'TV / CAST' }
+                { value: 'tv', label: 'TV / Stream' }
             ]},
             { id: 'issue', label: 'Issue Description', type: 'textarea', required: true, placeholder: 'Describe the problem...' },
             { id: 'since', label: 'Issue Started', type: 'date', required: true },
@@ -336,16 +336,16 @@ const formTemplates = {
         fields: [
             { id: 'number', label: 'Mobile Number to Port', type: 'text', required: true, placeholder: 'e.g. 9123 4567' },
             { id: 'provider', label: 'Current Provider', type: 'select', required: true, options: [
-                { value: 'starhub', label: 'StarHub' },
-                { value: 'm1', label: 'M1' },
-                { value: 'circles', label: 'Circles.Life' },
-                { value: 'tpg', label: 'TPG' },
+                { value: 'orbit', label: 'Orbit Mobile' },
+                { value: 'nexus', label: 'Nexus Mobile' },
+                { value: 'flux', label: 'Flux Telecom' },
+                { value: 'swift', label: 'Swift Mobile' },
                 { value: 'other', label: 'Other' }
             ]},
             { id: 'plan', label: 'New NovaTel Plan', type: 'select', required: true, options: [
-                { value: 'xo75', label: 'XO 75 — $75.90/mo' },
-                { value: 'xo98', label: 'XO 98 — $98.90/mo' },
-                { value: 'xo128', label: 'XO 128 — $128.90/mo' }
+                { value: 'nova75', label: 'Nova 75 — $75.90/mo' },
+                { value: 'nova98', label: 'Nova 98 — $98.90/mo' },
+                { value: 'nova128', label: 'Nova 128 — $128.90/mo' }
             ]},
             { id: 'date', label: 'Preferred Transfer Date', type: 'date', required: true }
         ]
