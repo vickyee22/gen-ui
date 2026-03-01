@@ -140,7 +140,7 @@
 
 .genui-input button {
     padding: 18px 32px;
-    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     border: none;
     color: white;
     font-size: 16px;
@@ -261,7 +261,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     border-radius: 50%;
 }
 
@@ -329,7 +329,7 @@
 }
 
 .send-btn {
-    background: var(--singtel-red);
+    background: var(--brand);
     color: white;
     border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
 }
@@ -377,5 +377,5 @@
 }
 
 .mobile-nav .nav-item.active {
-    color: var(--singtel-red);
+    color: var(--brand);
 }

@@ -197,7 +197,7 @@
     width: 100%;
     margin-top: 16px;
     padding: 14px;
-    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     border: none;
     border-radius: var(--radius-md);
     color: white;

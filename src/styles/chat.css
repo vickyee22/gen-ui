@@ -14,7 +14,7 @@
 .chat-minimized {
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -30,7 +30,7 @@
     align-items: center;
     gap: 12px;
     padding: 16px;
-    background: linear-gradient(135deg, var(--singtel-red) 0%, var(--singtel-red-dark) 100%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
 }
 
 .chat-avatar {
@@ -228,7 +228,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--singtel-red);
+    background: var(--brand);
     border: none;
     border-radius: 50%;
     color: white;
