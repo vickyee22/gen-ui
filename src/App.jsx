@@ -90,7 +90,6 @@ function App() {
         // Planning metrics
         planSteps: (result.components?.length || 0) + 2, // components + classify + orchestrate
         toolsExecuted: result.components?.length || 0,
-        validationStatus: intentResult.processingTime > 50 ? 'AI' : 'Fallback',
         replans: 0,
         // Governance metrics
         policyChecks: (result.components?.length || 0) > 0 ? 3 : 2,
@@ -361,10 +360,6 @@ function App() {
                     <div className="metric-row">
                       <span className="metric-label">Tools</span>
                       <span className="metric-value">{metrics.toolsExecuted}</span>
-                    </div>
-                    <div className="metric-row">
-                      <span className="metric-label">Validation</span>
-                      <span className="metric-value">{metrics.validationStatus === 'AI' ? '✓ AI' : '⚠ Fallback'}</span>
                     </div>
                     <div className="metric-row">
                       <span className="metric-label">Replans</span>
