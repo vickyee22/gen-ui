@@ -57,58 +57,8 @@ function App() {
     const totalStartTime = performance.now();
 
     try {
-      // Step 1: Classify Intent (Gemini AI) — with guardrails check
-      const intentResult = await classifyIntent(query, sessionId);
-
-      // Handle guardrail block
-      if (intentResult.intent === 'guardrail_blocked') {
-        setPayload({
-          message: intentResult.message,
-          intent: 'guardrail_blocked',
-          components: [],
-          channel,
-          metadata: {
-            confidence: 0,
-            description: intentResult.description,
-            originalQuery: query,
-            parameters: intentResult.parameters
-          },
-          fromCache: false,
-          trace: [],
-          orchestrationTime: Math.round(performance.now() - totalStartTime)
-        });
-
-        // Set metrics showing guardrail block
-        setMetrics({
-          sessionId,
-          completedSteps,
-          currentChannel: channel,
-          intent: 'guardrail_blocked',
-          components: [],
-          confidence: 0,
-          entityConfidence: 0,
-          planConfidence: 0,
-          intentTime: intentResult.processingTime,
-          orchestrationTime: 0,
-          hydrationTime: 0,
-          totalTime: Math.round(performance.now() - totalStartTime),
-          fromCache: false,
-          cacheStats: getCacheStats(),
-          trace: [],
-          planSteps: 1,
-          toolsExecuted: 0,
-          replans: 0,
-          policyChecks: 1,
-          guardrailsTriggered: intentResult.guardrailsTriggered || 1,
-          unsafeActionsRejected: intentResult.unsafeActionsRejected || 1,
-          hilRequired: false,
-          stateSize: 0.5
-        });
-
-        setIsProcessing(false);
-        setTimeout(() => setShowArchitecture(false), 500);
-        return;
-      }
+      // Step 1: Classify Intent (Gemini AI)
+      const intentResult = await classifyIntent(query);
 
       // Step 2: Orchestrate (component selection + data hydration)
       const result = await orchestrate(intentResult, channel);
@@ -197,11 +147,10 @@ function App() {
       ? payload.message
         ? (
           <motion.div
-            className={`text-response ${payload.intent === 'guardrail_blocked' ? 'guardrail-blocked' : ''}`}
+            className="text-response"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            {payload.intent === 'guardrail_blocked' && <span style={{ marginRight: '8px' }}>⚠️</span>}
             {payload.message}
           </motion.div>
         )

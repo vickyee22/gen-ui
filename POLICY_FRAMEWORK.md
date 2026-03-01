@@ -1,62 +1,56 @@
-# GenUI Policy Framework — Checks & Guardrails
+# GenUI Policy Framework — What Guardrails Would Do in Production
 
-This document explains what policy checks run in the orchestration pipeline and what guardrails would reject in a production system.
+This document explains what policy checks and guardrails exist in a **production GenUI system**. The current CAIS 2026 demo shows the happy path; these guardrails would silently protect the system in real deployments.
 
 ---
 
-## Policy Checks in the Current Demo
+## Important: Demo vs Production
+
+| Aspect | Demo | Production |
+|--------|------|-----------|
+| **Intent validation** | Always passes | Checks confidence, auth, intent registry |
+| **Policy checks** | Simulated count (2-3) | Real enforcement with rejection |
+| **Guardrails triggered** | Always 0 | Blocks abuse, PII, rate limits |
+| **Unsafe actions rejected** | Always 0 | Actively prevents harm |
+| **Display behavior** | Clean metrics | Logs and escalates violations |
+
+---
+
+## Policy Checks in Production
 
 ### Check 1: **Intent Validation**
-**When**: Always (before component selection)
-**What it does**: Verifies the Gemini API returned valid JSON and the intent is in our registry
+**When**: Always (after classification, before orchestration)
+**Purpose**: Ensures the intent is safe and recognized
 
-```javascript
-// orchestrator.js line 33-40
-const isValidated = intentResult.processingTime > 50; // AI vs Fallback
-trace.push({
-  step: 1,
-  name: 'Intent Validated',
-  status: isValidated ? 'AI' : 'Fallback'
-});
-```
-
-**In demo**: Always passes (no rejection logic)
-**In production**: Would check:
+**Would verify**:
 - Is intent in approved list? (compare_plans, bill_waiver_form, etc.)
 - Is confidence above threshold? (e.g., > 60%)
 - Is query from authenticated user?
+- Is intent attempt suspicious? (rapid retries, pattern matching, etc.)
+
+**In demo**: Always passes
+**In production**: Rejection returns: "Unable to process. Please try a different request."
 
 ---
 
-### Check 2: **Policy Checks** (Simulated)
-**When**: After intent classification, before hydration
-**Count**: 2 checks (message-only) or 3 checks (components required)
+### Check 2: **Policy & Governance Checks**
+**When**: After intent classification, before data hydration
+**Purpose**: Protect against abuse, ensure compliance
 
-```javascript
-// orchestrator.js line 42-52
-const policyCheckCount = intentResult.components?.length > 0 ? 3 : 2;
-const guardrailsTriggered = 0; // Never trigger in demo
-trace.push({
-  step: 2,
-  name: 'Policy Checks',
-  duration: ...,
-  checks: policyCheckCount,
-  triggered: guardrailsTriggered
-});
-```
+**Would run**:
+1. **Content policy** — Flag abuse, harassing, or malicious intent
+2. **Rate limiting** — Prevent spam and DoS (e.g., 5 forms/min, 20 queries/min)
+3. **Compliance** — Ensure request meets regulatory requirements (GDPR, etc.)
 
-**Current checks** (simulated):
-- **For message-only intents** (2 checks):
-  1. Rate limit check (prevent spam)
-  2. Session validity (is user still authenticated?)
+**In demo**:
+- Metrics panel shows: `Policy Checks: 2` (message-only) or `3` (components)
+- `Guardrails Triggered: 0` (always passes in happy path)
+- No actual enforcement
 
-- **For component intents** (3 checks):
-  1. Content policy (is the intent safe? no abuse/harassment)
-  2. Rate limiting (how many requests in this session?)
-  3. Guardrail compliance (does data return violate any rules?)
-
-**In demo**: All return "OK" (guardrailsTriggered = 0)
-**In production**: Would block/throttle requests that fail
+**In production**:
+- Would actively block requests that violate policy
+- Would log violations to security audit trail
+- Would escalate severe violations to human review
 
 ---
 
@@ -90,9 +84,9 @@ if (componentCache.has(cacheKey)) {
 
 ---
 
-## Guardrails: What Would Be Rejected
+## Guardrails: What Would Be Rejected in Production
 
-These examples show what a **real guardrails system** would catch and reject in production. Currently, the demo shows `guardrailsTriggered: 0` for everything.
+These examples show what a **real guardrails system** would catch and reject. **The current demo does not implement guardrails** — it shows the happy path where all queries pass (guardrailsTriggered: 0). In production, these would actively block requests.
 
 ### Guardrail 1: **SQL Injection Prevention**
 **Type**: Input validation
@@ -263,53 +257,47 @@ Content filter: Uses transformer model or keyword list
 
 ---
 
-## Metrics Impact: When Guardrails Fire
+## Metrics Impact: When Guardrails Fire (Production Only)
 
-When a guardrail is triggered in production:
+When a guardrail is triggered in production, metrics would show:
 
 ```javascript
 metrics = {
   guardrailsTriggered: 1,        // Went from 0 → 1
-  unsafeActionsRejected: 1,      // Form submission blocked
-  hilRequired: true,             // Human escalation needed
+  unsafeActionsRejected: 1,      // Request blocked
+  hilRequired: true,             // Human escalation flag
   policyChecks: 3,               // All 3 checks ran
   // Component NOT rendered; show error message instead
 }
 ```
 
-**For the keynote demo**: Leave `guardrailsTriggered: 0` (happy path only). But you could add:
-
-```javascript
-// Demo mode: show what would happen
-if (query.includes('[TEST_GUARDRAIL]')) {
-  guardrailsTriggered = 1;
-  unsafeActionsRejected = 1;
-  // Show "This request would be blocked in production" banner
-}
-```
+**In the CAIS 2026 demo**: `guardrailsTriggered: 0` (always). This demonstrates the happy path where GenUI successfully orchestrates intent → components. The metrics panel shows that the infrastructure is there, but the demo only shows successful requests.
 
 ---
 
 ## Recommendation for CAIS 2026 Keynote
 
-### **Keep in the demo:**
-- ✅ Intent validation (shows orchestration flow)
-- ✅ Rate limiting mention (but don't enforce)
-- ✅ Cache hit indicator (very visual: 145ms → 12ms)
+### **What to show in the demo:**
+- ✅ Intent classification and component orchestration
+- ✅ Cross-channel continuity (session ID, completed steps)
+- ✅ Cache performance (145ms → 12ms)
+- ✅ Confidence breakdown (Intent, Entity, Plan %)
+- ✅ Metrics panel with Policy Checks count
 
-### **Remove/hide in the demo:**
-- ❌ "AI vs Fallback" validation status (it's hardcoded; use cache indicator instead)
-- ❌ Explicit guardrail counts (say "0" in happy path; too confusing)
+### **What to mention (don't demo):**
+During the Q&A or closing:
+> "In production, every request passes through policy checks and guardrails before reaching the component renderer. These include SQL injection prevention, PII detection, rate limiting, compliance checks, and content filtering. The metrics panel shows this infrastructure exists—today's demo shows successful requests, but in the real system, guardrails would actively block abuse and escalate violations to our security team."
 
-### **Add as narrative callout:**
-During keynote, mention:
-> "In production, these requests would go through 7 guardrails: SQL injection, PII detection, rate limiting, port verification, content policy, billing validation, and fraud detection. Today's demo shows the happy path with all 7 passing."
-
-This makes the system look **production-ready** without cluttering the metrics panel with "0" numbers.
+### **Why this approach:**
+- ✅ Keeps the demo clean and focused on orchestration value
+- ✅ Mentions governance without distracting from main story
+- ✅ Demonstrates production-readiness through narrative, not noise
+- ✅ Audience understands: GenUI is enterprise-grade infrastructure
 
 ---
 
 ## Related Docs
 
-- `METRICS_EXAMPLES.md` — How metrics change with different queries
-- `PLAN.md` — Original enhancement planning doc (now mostly complete)
+- `METRICS_EXAMPLES.md` — How metrics change with different queries (12 examples)
+- `METRICS_DECISIONS.md` — Design decisions for the metrics panel
+- `PLAN.md` — Original enhancement planning doc

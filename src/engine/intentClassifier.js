@@ -3,8 +3,6 @@
  * and select the right UI components from a skill registry
  */
 
-import { evaluateGuardrails, logGuardrailViolation } from './guardrails';
-
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -228,26 +226,8 @@ function keywordFallback(query) {
     };
 }
 
-export async function classifyIntent(query, sessionId = 'unknown') {
+export async function classifyIntent(query) {
     const startTime = performance.now();
-
-    // Step 0: Guardrails check — block unsafe queries before classification
-    const guardrailsResult = evaluateGuardrails(query, sessionId);
-    if (guardrailsResult.blocked) {
-        logGuardrailViolation(sessionId, guardrailsResult.type, guardrailsResult.severity);
-        return {
-            intent: 'guardrail_blocked',
-            components: [],
-            confidence: 0,
-            message: guardrailsResult.message,
-            parameters: { guardrailViolation: guardrailsResult.type },
-            processingTime: Math.round(performance.now() - startTime),
-            description: `Blocked: ${guardrailsResult.violation}`,
-            originalQuery: query,
-            guardrailsTriggered: guardrailsResult.guardrailsTriggered,
-            unsafeActionsRejected: guardrailsResult.unsafeActionsRejected
-        };
-    }
 
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
         console.warn('[IntentClassifier] No Gemini API key — using keyword fallback');
