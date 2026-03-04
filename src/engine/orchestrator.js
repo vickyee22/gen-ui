@@ -173,6 +173,16 @@ function getChannelConfig(component, channel) {
             web: { compact: false },
             mobile: { compact: false },
             chat: { compact: true }
+        },
+        ProductRecommendations: {
+            web: { layout: 'grid', showFilters: true, showRatings: true, animate: true },
+            mobile: { layout: 'grid', showFilters: true, showRatings: true, animate: true },
+            chat: { layout: 'list', showFilters: false, showRatings: false, animate: false }
+        },
+        OrderTracker: {
+            web: { layout: 'timeline', showActions: true, animate: true },
+            mobile: { layout: 'timeline', showActions: true, animate: true },
+            chat: { layout: 'compact', showActions: false, animate: false }
         }
     };
 

@@ -3,9 +3,9 @@
  * CAIS 2026 Keynote Demo
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Monitor, Smartphone, MessageCircle, Zap, Clock, Database, Brain, Eye, EyeOff } from 'lucide-react';
+import { Monitor, Smartphone, MessageCircle, Zap, Clock, Database, Brain, Eye, EyeOff, ArrowLeft, Radio, ShoppingBag, Wifi, Tv, HelpCircle, Headphones, Speaker, Package, RotateCcw } from 'lucide-react';
 
 import { classifyIntent } from './engine/intentClassifier';
 import { orchestrate, getCacheStats } from './engine/orchestrator';
@@ -14,14 +14,54 @@ import { WebChannel, MobileChannel, ChatChannel } from './channels';
 
 import './index.css';
 
-// Demo suggestions
-const SUGGESTIONS = [
-  "Compare 5G plans with roaming",
-  "I was overcharged $45 for roaming last month",
-  "Why is my bill so high this month?",
-  "Port my number to NovaTel",
-  "My internet is slow"
-];
+// Domain-specific suggestions
+const DOMAIN_SUGGESTIONS = {
+  novatek: [
+    "Compare 5G plans with roaming",
+    "I was overcharged $45 for roaming last month",
+    "Why is my bill so high this month?",
+    "Port my number to FutureTel",
+    "My internet is slow"
+  ],
+  futurecommerce: [
+    "Show me wireless headphones under $100",
+    "Where is my order ORD-789?",
+    "Find me noise cancelling earbuds",
+    "I want to return my Sony headphones from order ORD-789",
+    "Best bluetooth speakers under $100"
+  ]
+};
+
+const DOMAIN_CONFIG = {
+  novatek: {
+    label: 'FutureTel',
+    tagline: 'Telecom · Plans · Billing · Support',
+    heroTitle: 'How can we help you today?',
+    heroSub: 'Ask anything about your plans, bills, or services',
+    icon: Radio,
+    accent: 'teal',
+    nav: [
+      { icon: Smartphone, label: 'Mobile' },
+      { icon: Wifi, label: 'Broadband' },
+      { icon: Tv, label: 'Entertainment' },
+      { icon: HelpCircle, label: 'Support' }
+    ]
+  },
+  futurecommerce: {
+    label: 'FutureCommerce',
+    tagline: 'Audio · Electronics · Orders · Returns',
+    heroTitle: 'What are you looking for?',
+    heroSub: 'Browse products, track orders, or get support',
+    icon: ShoppingBag,
+    accent: 'indigo',
+    nav: [
+      { icon: Headphones, label: 'Audio' },
+      { icon: ShoppingBag, label: 'Products' },
+      { icon: Package, label: 'Orders' },
+      { icon: RotateCcw, label: 'Returns' }
+    ]
+  }
+};
 
 function App() {
   // Session management
@@ -34,6 +74,9 @@ function App() {
   const [previousChannel, setPreviousChannel] = useState('web');
   const [showSessionResume, setShowSessionResume] = useState(false);
   const sessionResumeTimeoutRef = useRef(null);
+
+  // Domain selection
+  const [domain, setDomain] = useState(null); // null = landing page
 
   // UI state
   const [channel, setChannel] = useState('web');
@@ -58,7 +101,7 @@ function App() {
 
     try {
       // Step 1: Classify Intent (Gemini AI)
-      const intentResult = await classifyIntent(query);
+      const intentResult = await classifyIntent(query, domain);
 
       // Step 2: Orchestrate (component selection + data hydration)
       const result = await orchestrate(intentResult, channel);
@@ -88,6 +131,7 @@ function App() {
         cacheStats: getCacheStats(),
         trace: result.trace || [],
         // Planning metrics
+        components: result.components?.map(c => c.name) || [],
         planSteps: (result.components?.length || 0) + 2, // components + classify + orchestrate
         toolsExecuted: result.components?.length || 0,
         replans: 0,
@@ -133,14 +177,24 @@ function App() {
     };
   }, []);
 
+  const handleSelectDomain = (d) => {
+    setDomain(d);
+    setPayload(null);
+    setMetrics(null);
+    setQuery('');
+  };
+
   // Render the appropriate channel
   const renderChannel = () => {
+    const suggestions = domain ? DOMAIN_SUGGESTIONS[domain] : [];
     const channelProps = {
       query,
       onQueryChange: handleQueryChange,
       onSubmit: handleSubmit,
-      suggestions: SUGGESTIONS,
-      isProcessing
+      suggestions,
+      isProcessing,
+      brandName: domainCfg?.label || 'FutureTel',
+      navItems: domainCfg?.nav || []
     };
 
     const genUIContent = payload
@@ -167,8 +221,61 @@ function App() {
     }
   };
 
+  // Landing page
+  if (!domain) {
+    return (
+      <div className="app landing">
+        <div className="landing-page">
+          <div className="landing-header">
+            <h1>Unified Generative UI</h1>
+            <p>Intent-first orchestration across channels. Select a domain to begin.</p>
+          </div>
+          <div className="landing-cards">
+            {Object.entries(DOMAIN_CONFIG).map(([key, config]) => {
+              const Icon = config.icon;
+              return (
+                <motion.button
+                  key={key}
+                  className={`domain-card domain-card-${config.accent}`}
+                  onClick={() => handleSelectDomain(key)}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="domain-card-icon">
+                    <Icon size={36} />
+                  </div>
+                  <h2>{config.label}</h2>
+                  <p>{config.tagline}</p>
+                  <span className="domain-card-cta">Open demo →</span>
+                </motion.button>
+              );
+            })}
+          </div>
+          <div className="landing-footer">
+            <span>CAIS 2026 · Unified Generative UI PoC</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const domainCfg = DOMAIN_CONFIG[domain];
+
   return (
-    <div className="app">
+    <div className={`app domain-${domain}`}>
+      {/* Domain Nav Bar */}
+      <div className="domain-nav">
+        <button className="domain-back-btn" onClick={() => handleSelectDomain(null)}>
+          <ArrowLeft size={14} /> Domains
+        </button>
+        <div className="domain-nav-label">
+          {React.createElement(domainCfg.icon, { size: 14 })}
+          <span>{domainCfg.label}</span>
+        </div>
+      </div>
+
       {/* Channel Selector */}
       <div className="channel-selector">
         <div className="selector-label">Channel:</div>
@@ -210,14 +317,6 @@ function App() {
         )}
       </div>
 
-      {/* Status Line */}
-      <div className="status-line">
-        <span className="status-item">Mode: Intent-Orchestrated</span>
-        <span className="status-divider">|</span>
-        <span className="status-item">Deterministic Execution</span>
-        <span className="status-divider">|</span>
-        <span className="status-item">Policy-Enforced</span>
-      </div>
 
       {/* Session Resume Animation */}
       <AnimatePresence>
@@ -294,7 +393,19 @@ function App() {
       </AnimatePresence>
 
       {/* Metrics Panel */}
-      {metrics && !showArchitecture && (
+      {metrics && !showArchitecture && !showMetrics && (
+        <motion.button
+          className="metrics-collapsed-btn"
+          onClick={() => setShowMetrics(true)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          title="Show metrics"
+        >
+          <Eye size={16} />
+        </motion.button>
+      )}
+
+      {metrics && !showArchitecture && showMetrics && (
         <motion.div
           className="metrics-panel"
           initial={{ opacity: 0, y: 20 }}
@@ -305,15 +416,14 @@ function App() {
             <span>GenUI Orchestration</span>
             <button
               className="metrics-toggle"
-              onClick={() => setShowMetrics(!showMetrics)}
-              title={showMetrics ? "Hide" : "Show"}
+              onClick={() => setShowMetrics(false)}
+              title="Hide panel"
             >
-              {showMetrics ? <Eye size={14} /> : <EyeOff size={14} />}
+              <EyeOff size={14} />
             </button>
           </div>
 
-          {showMetrics && (
-            <>
+          <>
               <div className="metrics-tabs">
                 <button
                   className={`tab ${metricsTab === 'overview' ? 'active' : ''}`}
@@ -353,6 +463,14 @@ function App() {
                   {/* Planning Metrics */}
                   <div className="metrics-section">
                     <div className="section-title">PLAN</div>
+                    <div className="metric-row">
+                      <span className="metric-label">Components</span>
+                      <span className="metric-value">
+                        {metrics.components?.length > 0
+                          ? metrics.components.join(', ')
+                          : '—'}
+                      </span>
+                    </div>
                     <div className="metric-row">
                       <span className="metric-label">Steps</span>
                       <span className="metric-value">{metrics.planSteps}</span>
@@ -427,7 +545,6 @@ function App() {
                 </div>
               )}
             </>
-          )}
         </motion.div>
       )}
 
@@ -435,7 +552,7 @@ function App() {
       <div className="demo-info">
         <span>CAIS 2026 Keynote</span>
         <span className="divider">|</span>
-        <span>Unified Generative UI: Orchestrating Intent Across App, Web, and Chat</span>
+        <span>{domainCfg.label} · Unified Generative UI</span>
       </div>
     </div>
   );

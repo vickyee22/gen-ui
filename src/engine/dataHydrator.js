@@ -251,6 +251,111 @@ const troubleshootingSteps = {
     }
 };
 
+// ─── Ecommerce data ──────────────────────────────────────────────────────────
+
+const productCatalog = {
+    headphones: [
+        {
+            id: 'hp-001', name: 'Sony WH-1000XM5', category: 'headphones',
+            description: 'Industry-leading noise cancelling, 30hr battery',
+            price: 89.99, originalPrice: 129.99,
+            rating: 5, reviews: 2841,
+            emoji: '🎧',
+            badge: 'Best Seller',
+            tags: ['Wireless', 'Noise Cancelling', 'Over-ear']
+        },
+        {
+            id: 'hp-002', name: 'Anker Soundcore Q45', category: 'headphones',
+            description: 'Hi-Res Audio, 50hr playtime, foldable design',
+            price: 49.99, originalPrice: null,
+            rating: 4, reviews: 1203,
+            emoji: '🎧',
+            badge: null,
+            tags: ['Wireless', 'Budget Pick', 'Over-ear']
+        },
+        {
+            id: 'hp-003', name: 'JBL Tune 770NC', category: 'headphones',
+            description: 'Adaptive noise cancelling, 44hr battery, JBL Pure Bass',
+            price: 79.99, originalPrice: 99.99,
+            rating: 4, reviews: 876,
+            emoji: '🎧',
+            badge: 'On Sale',
+            tags: ['Wireless', 'Noise Cancelling', 'Foldable']
+        }
+    ],
+    earbuds: [
+        {
+            id: 'eb-001', name: 'Apple AirPods 4', category: 'earbuds',
+            description: 'Active noise cancellation, H2 chip, USB-C',
+            price: 99.99, originalPrice: null,
+            rating: 5, reviews: 5210,
+            emoji: '🎵',
+            badge: 'Popular',
+            tags: ['Wireless', 'ANC', 'Apple']
+        },
+        {
+            id: 'eb-002', name: 'Samsung Galaxy Buds3', category: 'earbuds',
+            description: 'Open-type design, 360 Audio, 6hr battery',
+            price: 69.99, originalPrice: 89.99,
+            rating: 4, reviews: 742,
+            emoji: '🎵',
+            badge: 'Sale',
+            tags: ['Wireless', 'Open-fit', 'Samsung']
+        }
+    ],
+    speakers: [
+        {
+            id: 'sp-001', name: 'JBL Charge 5', category: 'speakers',
+            description: 'Waterproof, 20hr battery, built-in powerbank',
+            price: 99.99, originalPrice: null,
+            rating: 5, reviews: 3120,
+            emoji: '🔊',
+            badge: null,
+            tags: ['Waterproof', 'Portable', 'Powerbank']
+        }
+    ]
+};
+
+// Mock orders
+const orderCatalog = {
+    'ORD-789': {
+        orderId: 'ORD-789',
+        currentStatus: 'shipped',
+        statusLabel: 'In Transit',
+        total: 89.99,
+        estimatedDelivery: 'Wed, 5 Mar 2026',
+        deliveryAddress: '12 Innovation Drive, #04-01',
+        items: [
+            { name: 'Sony WH-1000XM5', qty: 1, price: 89.99, emoji: '🎧' }
+        ],
+        steps: [
+            { id: 1, statusKey: 'placed', state: 'completed', title: 'Order Placed', timestamp: '1 Mar 2026, 10:22 AM', detail: 'Payment confirmed' },
+            { id: 2, statusKey: 'confirmed', state: 'completed', title: 'Order Confirmed', timestamp: '1 Mar 2026, 10:45 AM', detail: null },
+            { id: 3, statusKey: 'packed', state: 'completed', title: 'Packed & Ready', timestamp: '2 Mar 2026, 08:10 AM', detail: 'Dispatched from warehouse' },
+            { id: 4, statusKey: 'shipped', state: 'active', title: 'In Transit', timestamp: '3 Mar 2026, 06:30 AM', detail: 'SingPost Express — tracking: SP123456789' },
+            { id: 5, statusKey: 'out_for_delivery', state: 'pending', title: 'Out for Delivery', timestamp: 'Expected 5 Mar', detail: null },
+            { id: 6, statusKey: 'delivered', state: 'pending', title: 'Delivered', timestamp: 'Expected 5 Mar', detail: null }
+        ]
+    },
+    'ORD-456': {
+        orderId: 'ORD-456',
+        currentStatus: 'delivered',
+        statusLabel: 'Delivered',
+        total: 49.99,
+        estimatedDelivery: null,
+        deliveryAddress: '12 Innovation Drive, #04-01',
+        items: [
+            { name: 'Anker Soundcore Q45', qty: 1, price: 49.99, emoji: '🎧' }
+        ],
+        steps: [
+            { id: 1, statusKey: 'placed', state: 'completed', title: 'Order Placed', timestamp: '22 Feb 2026, 09:00 AM', detail: null },
+            { id: 2, statusKey: 'confirmed', state: 'completed', title: 'Confirmed', timestamp: '22 Feb 2026, 09:15 AM', detail: null },
+            { id: 3, statusKey: 'shipped', state: 'completed', title: 'Shipped', timestamp: '23 Feb 2026, 07:00 AM', detail: null },
+            { id: 4, statusKey: 'delivered', state: 'completed', title: 'Delivered', timestamp: '25 Feb 2026, 02:30 PM', detail: 'Left at door' }
+        ]
+    }
+};
+
 // eForm templates
 const formTemplates = {
     bill_waiver: {
@@ -297,7 +402,7 @@ const formTemplates = {
     feedback: {
         formType: 'feedback',
         title: 'Share Your Feedback',
-        description: 'Help us improve your NovaTel experience',
+        description: 'Help us improve your FutureTel experience',
         submitLabel: 'Send Feedback',
         successMessage: 'Thank you! Your feedback helps us serve you better.',
         fields: [
@@ -327,10 +432,37 @@ const formTemplates = {
             { id: 'message', label: 'Message', type: 'textarea', required: true, placeholder: 'How can we help?' }
         ]
     },
+    return_request: {
+        formType: 'return_request',
+        title: 'Return Request',
+        description: 'Start a return for an item from your recent order',
+        submitLabel: 'Submit Return',
+        successMessage: 'Your return has been approved. A prepaid label will be emailed to you within 30 minutes.',
+        fields: [
+            { id: 'orderId', label: 'Order ID', type: 'text', required: true, placeholder: 'e.g. ORD-789' },
+            { id: 'productName', label: 'Item to Return', type: 'text', required: true, placeholder: 'e.g. Sony WH-1000XM5' },
+            { id: 'reason', label: 'Return Reason', type: 'select', required: true, options: [
+                { value: 'defective', label: 'Defective / Not Working' },
+                { value: 'wrong_item', label: 'Wrong Item Received' },
+                { value: 'not_as_described', label: 'Not as Described' },
+                { value: 'changed_mind', label: 'Changed My Mind' },
+                { value: 'damaged', label: 'Damaged in Shipping' }
+            ]},
+            { id: 'condition', label: 'Item Condition', type: 'select', required: true, options: [
+                { value: 'unopened', label: 'Unopened / Sealed' },
+                { value: 'opened', label: 'Opened, Unused' },
+                { value: 'used', label: 'Used' }
+            ]},
+            { id: 'refundMethod', label: 'Refund Method', type: 'select', required: true, options: [
+                { value: 'original', label: 'Original Payment Method' },
+                { value: 'store_credit', label: 'Store Credit' }
+            ]}
+        ]
+    },
     port_request: {
         formType: 'port_request',
         title: 'Number Port Request',
-        description: 'Transfer your existing number to NovaTel',
+        description: 'Transfer your existing number to FutureTel',
         submitLabel: 'Submit Port Request',
         successMessage: 'Your port request is being processed. Transfer will complete within 1 business day.',
         fields: [
@@ -342,7 +474,7 @@ const formTemplates = {
                 { value: 'swift', label: 'Swift Mobile' },
                 { value: 'other', label: 'Other' }
             ]},
-            { id: 'plan', label: 'New NovaTel Plan', type: 'select', required: true, options: [
+            { id: 'plan', label: 'New FutureTel Plan', type: 'select', required: true, options: [
                 { value: 'nova75', label: 'Nova 75 — $75.90/mo' },
                 { value: 'nova98', label: 'Nova 98 — $98.90/mo' },
                 { value: 'nova128', label: 'Nova 128 — $128.90/mo' }
@@ -378,6 +510,12 @@ export async function hydrateComponent(component, parameters) {
                     break;
                 case 'DynamicForm':
                     data = hydrateDynamicForm(parameters);
+                    break;
+                case 'ProductRecommendations':
+                    data = hydrateProductRecommendations(parameters);
+                    break;
+                case 'OrderTracker':
+                    data = hydrateOrderTracker(parameters);
                     break;
                 default:
                     data = { error: 'Unknown component' };
@@ -467,6 +605,72 @@ function hydrateDynamicForm(params) {
     });
 
     return { ...template, fields, aiContext };
+}
+
+function hydrateProductRecommendations(params) {
+    const { category = 'all', budget, keywords = [] } = params;
+
+    // Gather products from catalog
+    let allProducts = Object.values(productCatalog).flat();
+
+    // Filter by category if specified
+    if (category !== 'all' && productCatalog[category]) {
+        allProducts = productCatalog[category];
+    }
+
+    // Filter by budget if AI extracted one
+    let filtered = budget
+        ? allProducts.filter(p => p.price <= parseFloat(budget))
+        : allProducts;
+
+    // Filter by keywords if any (e.g. "wireless", "noise cancelling")
+    if (keywords.length > 0) {
+        filtered = filtered.filter(p =>
+            keywords.some(kw =>
+                p.tags.some(t => t.toLowerCase().includes(kw.toLowerCase())) ||
+                p.description.toLowerCase().includes(kw.toLowerCase())
+            )
+        );
+    }
+
+    // Fall back to all if filters leave nothing
+    if (filtered.length === 0) filtered = allProducts;
+
+    const categories = ['all', ...Object.keys(productCatalog)];
+
+    // Budget note for UI
+    const budgetNote = budget
+        ? `Showing products under $${budget} — AI extracted your budget from your query`
+        : null;
+
+    const aiContext = [
+        category !== 'all' ? category : null,
+        budget ? `under $${budget}` : null,
+        ...keywords
+    ].filter(Boolean).join(', ') || null;
+
+    return {
+        title: 'Recommended For You',
+        products: filtered,
+        categories,
+        activeCategory: category !== 'all' ? category : 'all',
+        budgetNote,
+        aiContext
+    };
+}
+
+function hydrateOrderTracker(params) {
+    const { orderId } = params;
+
+    // Look up order by ID (case-insensitive)
+    const key = orderId
+        ? Object.keys(orderCatalog).find(k => k.toLowerCase() === orderId.toLowerCase())
+        : null;
+
+    if (key) return orderCatalog[key];
+
+    // Default to most recent order if no ID extracted
+    return orderCatalog['ORD-789'];
 }
 
 function hydrateTroubleshootingWidget(params) {
