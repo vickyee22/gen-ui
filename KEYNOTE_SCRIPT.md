@@ -80,6 +80,29 @@ The orchestrator controls what runs. Not the LLM.
 
 ## 3. Live Demo (12 min)
 
+---
+
+### 🖥️ DEMO SLIDE — Keep this on screen for the full 12 minutes
+
+> **Put this slide up before switching to the browser. Leave it visible on the presenter display throughout.**
+
+**Slide layout**: Two-column, dark background
+
+**Top label**: `LIVE DEMO · 12 MIN`
+
+**Headline**: `Unified Generative UI in Action`
+
+| FutureTel (Telecom) | FutureCommerce (Ecommerce) |
+|---------------------|---------------------------|
+| "Compare 5G plans with roaming" → ComparisonTable | "Show me wireless headphones under $100" → Product Grid |
+| "I was overcharged $45 for roaming last month" → Pre-filled Form | "Where is my order ORD-789?" → Order Timeline |
+| "Why is my bill so high?" → BillShockChart | "I want to return my Sony headphones" → Return Form |
+| Switch Web → App → Chat → Cross-channel continuity | Repeat any query → Cache hit · ~12ms |
+
+**Bottom line**: `Same engine. Two domains. One pipeline.`
+
+---
+
 ### Domain 1 — FutureTel (Telecom)
 
 ---
