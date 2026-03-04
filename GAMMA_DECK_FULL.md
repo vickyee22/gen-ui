@@ -49,13 +49,14 @@
 
 **Body**:
 > A web flow. An app flow. A chat flow.
-> Same customer. Same intent. Three codebases that diverge over time.
-> Every new capability gets built three times. Every bug gets fixed three times. Every channel gets out of sync — slowly, invisibly.
-> This isn't unique to telecom. Ecommerce, banking, healthcare — the pattern repeats everywhere.
+> Same customer. Same underlying need. Three implementations that drift apart over time.
+> Every new feature gets built three times. Every bug gets fixed three times. Every channel slowly becomes inconsistent with the others.
+> But duplication is only the visible cost. The deeper cost is rigidity — the system cannot adapt when the customer's intent changes mid-journey.
+> This is not a telecom problem. It is a retailer problem, a banking problem, a healthcare problem. Anywhere the same customer shows up through multiple interfaces, this pattern repeats.
 
 **Visual**: None. Text only. Big, stark.
 
-**Notes**: Pause after the headline. Let it land. Then: "This isn't a technology problem. It's an architectural assumption. The assumption that the channel comes first."
+**Notes**: Pause after the headline. Let it land. Then: "The issue is not the UI. The issue is the architecture assumption underneath it: that the channel comes first, and the experience can only do what that channel flow already expected." Transition: "That assumption breaks because customers do not arrive in neat workflow-shaped requests."
 
 ---
 
@@ -67,7 +68,7 @@
 > The customer doesn't think in workflows.
 
 **Left column — Customer says:**
-> "Show me wireless headphones under $100, and I also want to check on my order — and if those headphones aren't good, maybe I'll return the ones I already bought."
+> "Show me wireless headphones under $100, check where my order is, and if these are better, maybe I should return what I bought."
 
 **Right column — System requires:**
 > Clear intent
@@ -76,9 +77,9 @@
 > One thing at a time
 
 **Small text below**:
-> Four requirements. One sentence. The system loses before the conversation starts. This gap exists whether you're a telco, a retailer, or a bank.
+> One sentence. Three intents: product discovery, order tracking, and return initiation. Most enterprise systems cannot process that as one moment. They force the customer to pick a flow, commit early, and repeat context. The failure happens before UX design even begins.
 
-**Notes**: Point to the right column. "This is the architectural gap. Not a UX gap. Not a product gap. The architecture assumes intent is clean. Real customers don't give you clean intent."
+**Notes**: Point to the right column. "The architecture assumes intent is clean and singular. The customer is neither. That gap is what this work addresses." Transition: "The fix is not a better chatbot. The fix is to invert the decision model."
 
 ---
 
@@ -106,7 +107,7 @@ AFTER    Intent → Orchestrator → Components → Channel
 
 ---
 
-## Card 5 — The Thesis
+## Card 5 — The Governing Principle
 
 **Type**: Quote / statement card
 
@@ -114,14 +115,14 @@ AFTER    Intent → Orchestrator → Components → Channel
 > "LLM proposes. The system governs. Execution remains deterministic."
 
 **Second line:**
-> The AI is the planner. The orchestrator is the control plane. Not the other way around.
+> The AI is the planner. It proposes a structured plan. The orchestrator is the control plane. It decides what can actually run.
 
 **Small text below**:
-> The LLM never executes. It never has memory between calls. It never touches customer data. It writes a plan — and the orchestrator decides whether to run it. This separation is what makes it safe for production.
+> The model does not execute tools directly. It does not own state. It only sees the user request and returns a plan — the hydrated UI data stays in the orchestration path. That separation is what makes this viable beyond a demo.
 
 **Visual**: Dark background. Centred. Maximum impact.
 
-**Notes**: Say this once. Don't repeat it. "This is the architecture principle we built on. Everything you're about to see comes back to this." Move on.
+**Notes**: Deliver this cleanly and once. "This is the governing principle of the whole architecture. Everything you are about to see comes back to this." Transition: "So if we already had intent-to-flow systems, what exactly is new here?"
 
 ---
 
