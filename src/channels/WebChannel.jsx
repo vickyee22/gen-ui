@@ -4,23 +4,22 @@
  */
 
 import { motion } from 'framer-motion';
-import { Search, User, ShoppingCart, Smartphone, Wifi, Tv, HelpCircle } from 'lucide-react';
+import { Search, User, ShoppingCart } from 'lucide-react';
 
-export function WebChannel({ children, query, onQueryChange, onSubmit, suggestions }) {
+export function WebChannel({ children, query, onQueryChange, onSubmit, suggestions, brandName = 'FutureTel', navItems = [] }) {
     return (
         <div className="web-channel">
             {/* Header */}
             <header className="web-header">
                 <div className="header-top">
                     <div className="logo">
-                        <span className="logo-text">NovaTel</span>
+                        <span className="logo-text">{brandName}</span>
                     </div>
 
                     <nav className="nav-main">
-                        <a href="#" className="nav-item"><Smartphone size={16} /> Mobile</a>
-                        <a href="#" className="nav-item"><Wifi size={16} /> Broadband</a>
-                        <a href="#" className="nav-item"><Tv size={16} /> Entertainment</a>
-                        <a href="#" className="nav-item"><HelpCircle size={16} /> Support</a>
+                        {navItems.map(({ icon: Icon, label }) => (
+                            <a key={label} href="#" className="nav-item"><Icon size={16} /> {label}</a>
+                        ))}
                     </nav>
 
                     <div className="header-actions">
@@ -80,7 +79,7 @@ export function WebChannel({ children, query, onQueryChange, onSubmit, suggestio
             {/* Footer */}
             <footer className="web-footer">
                 <div className="footer-content">
-                    <span>© 2026 NovaTel. All rights reserved.</span>
+                    <span>© 2026 {brandName}. All rights reserved.</span>
                     <span className="footer-demo">GenUI Demo - CAIS 2026</span>
                 </div>
             </footer>

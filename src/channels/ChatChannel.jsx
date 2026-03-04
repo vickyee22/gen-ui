@@ -7,12 +7,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, X, Minus, Sparkles } from 'lucide-react';
 
-export function ChatChannel({ children, query, onQueryChange, onSubmit, suggestions, isProcessing }) {
+export function ChatChannel({ children, query, onQueryChange, onSubmit, suggestions, isProcessing, brandName = 'FutureTel' }) {
     const [messages, setMessages] = useState([
         {
             id: 1,
             type: 'bot',
-            content: "Hi! I'm your NovaTel assistant. How can I help you today?",
+            content: `Hi! I'm your ${brandName} assistant. How can I help you today?`,
             timestamp: new Date()
         }
     ]);
@@ -72,7 +72,7 @@ export function ChatChannel({ children, query, onQueryChange, onSubmit, suggesti
                     <Bot size={24} />
                 </div>
                 <div className="chat-info">
-                    <span className="chat-name">NovaTel Assistant</span>
+                    <span className="chat-name">{brandName} Assistant</span>
                     <span className="chat-status">
                         <span className="status-dot"></span>
                         Online

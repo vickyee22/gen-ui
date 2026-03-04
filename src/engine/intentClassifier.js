@@ -6,6 +6,22 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_API_KEY}`;
 
+// Domain-scoped registries
+const DOMAIN_COMPONENTS = {
+    novatek: ['ComparisonTable', 'BundleBuilder', 'BillShockChart', 'TroubleshootingWidget', 'DynamicForm'],
+    futurecommerce: ['ProductRecommendations', 'OrderTracker', 'DynamicForm']
+};
+
+const DOMAIN_FORM_TYPES = {
+    novatek: ['bill_waiver', 'technical_support', 'feedback', 'contact_us', 'port_request'],
+    futurecommerce: ['return_request', 'contact_us', 'feedback']
+};
+
+const DOMAIN_CONTEXT = {
+    novatek: 'You are a UI orchestrator for FutureTel, a telecommunications company.',
+    futurecommerce: 'You are a UI orchestrator for FutureCommerce, an electronics and audio products ecommerce store.'
+};
+
 // Component registry — each component advertises what it can handle
 const COMPONENT_REGISTRY = [
     {
@@ -50,26 +66,47 @@ const COMPONENT_REGISTRY = [
     },
     {
         name: 'DynamicForm',
-        description: 'AI-powered dynamic eForm that renders the right fields and pre-fills them from user context. Use for: bill disputes/waivers, technical support requests, feedback, contact us, number port requests.',
+        description: 'AI-powered dynamic eForm that renders the right fields and pre-fills them from user context. Use for: bill disputes/waivers, technical support requests, feedback, contact us, number port requests, product return requests.',
         handles: [
             'waive my bill', 'dispute charge', 'overcharged', 'wrong charge',
             'submit a complaint', 'raise a complaint', 'I have a complaint',
             'technical issue', 'report a problem', 'raise a ticket',
             'give feedback', 'leave a review', 'rate my experience',
             'contact support', 'speak to someone', 'reach customer service',
-            'port my number', 'transfer my number', 'switch to NovaTel'
+            'port my number', 'transfer my number', 'switch to FutureTel',
+            'return my order', 'return item', 'refund', 'return this product'
         ],
         formTypes: {
             bill_waiver: 'overcharged, wrong charge, dispute bill, waive fee',
             technical_support: 'technical issue, service not working, report problem',
             feedback: 'feedback, suggestion, review, rate experience',
             contact_us: 'contact, speak to agent, reach support',
-            port_request: 'port number, transfer number, switch provider'
+            port_request: 'port number, transfer number, switch provider',
+            return_request: 'return order, return item, refund product, send back'
         }
+    },
+    {
+        name: 'ProductRecommendations',
+        description: 'Ecommerce product discovery grid. Shows products filtered by AI-extracted budget, category, and feature keywords. Use for: browsing products, finding items by budget, searching by type (headphones, earbuds, speakers).',
+        handles: [
+            'show me products', 'find me headphones', 'looking for earbuds',
+            'recommend a speaker', 'best headphones under', 'wireless headphones',
+            'noise cancelling', 'bluetooth earphones', 'budget earbuds',
+            'shop for', 'buy headphones', 'what speakers do you have'
+        ]
+    },
+    {
+        name: 'OrderTracker',
+        description: 'Order status timeline. Shows step-by-step order progress. Use when user asks about a specific order, delivery status, or tracking. Extract orderId from query if present.',
+        handles: [
+            'track my order', 'where is my order', 'order status',
+            'has my order shipped', 'when will my order arrive',
+            'delivery status', 'wheres my package', 'check my order'
+        ]
     }
 ];
 
-const SYSTEM_PROMPT = `You are a UI orchestrator for NovaTel, a telecommunications company.
+const SYSTEM_PROMPT = `You are a UI orchestrator for a multi-domain platform covering telecommunications (FutureTel) and ecommerce (electronics/audio products).
 
 Given a user query, decide which UI components to render from the registry below.
 Select 0, 1, or 2 components — only select multiple when the query clearly needs both.
@@ -88,24 +125,90 @@ Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
 
 Rules (apply the FIRST matching rule):
 1. Greetings (hello, hi, hey, good morning): components=[], friendly welcome message
-2. Bill disputes, overcharges, waiver requests, wrong/unexpected charges: DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these
-3. Contact agent / talk to someone / delivery issue / complaint about order or service: DynamicForm, formType: "contact_us", prefilled: { subject: "<extracted topic>" }
-4. Technical support request / raise ticket / report a problem: DynamicForm, formType: "technical_support"
-5. Feedback / review / rate experience: DynamicForm, formType: "feedback"
-6. Port / transfer number / switch provider: DynamicForm, formType: "port_request"
-7. eForm parameters for DynamicForm: { formType, prefilled: {fieldId: value}, aiContext: "original query snippet" }
-   - prefilled: extract values from the query (e.g. amount, reason, issueType, period, subject, service)
-   - Example: "I was overcharged $45 for roaming last month" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45", period: "jan-2026", reason: "Overcharged for roaming" }
-   - Example: "talk to agent about device delivery" → formType: "contact_us", prefilled: { subject: "Device delivery enquiry" }
-8. Bill explanation / why is my bill high / bill breakdown (NOT a dispute): BillShockChart
-9. Connectivity / speed issues: TroubleshootingWidget
-10. Device / phone selection queries (select a device, choose a phone, compare phones): ComparisonTable, parameters: { planTypes: ["Device"] }
-11. Plan discovery or comparison: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
-12. Bundle-only queries (build a bundle, home internet + mobile package): BundleBuilder ONLY — do NOT add ComparisonTable unless user explicitly also asks to compare plans
-13. User explicitly asks to compare plans AND build a bundle in the same query: ComparisonTable + BundleBuilder
-14. Anything else unrelated to telco: components=[], helpful fallback message
+2. Return item / refund / send back product: DynamicForm, formType: "return_request", prefilled: { orderId: "<extracted if present>", productName: "<extracted if present>" }
+3. Track order / order status / where is my order / delivery: OrderTracker, parameters: { orderId: "<extracted order ID if present, e.g. ORD-789>" }
+4. Product search / browse / recommend (headphones, earbuds, speakers, electronics): ProductRecommendations
+   - Extract: { category: "headphones|earbuds|speakers|all", budget: "<number if mentioned>", keywords: ["wireless","noise cancelling", etc.] }
+   - Example: "show me wireless headphones under $100" → ProductRecommendations, { category: "headphones", budget: "100", keywords: ["wireless"] }
+5. Bill disputes, overcharges, waiver requests, wrong/unexpected charges: DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these
+6. Contact agent / talk to someone / complaint: DynamicForm, formType: "contact_us", prefilled: { subject: "<extracted topic>" }
+7. Technical support request / raise ticket: DynamicForm, formType: "technical_support"
+8. Feedback / review / rate experience: DynamicForm, formType: "feedback"
+9. Port / transfer number / switch provider: DynamicForm, formType: "port_request"
+10. DynamicForm parameters: { formType, prefilled: {fieldId: value}, aiContext: "original query snippet" }
+    - prefilled: extract values from query (amount, reason, issueType, period, subject, orderId, productName)
+    - Example: "I was overcharged $45 for roaming last month" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45", period: "jan-2026" }
+    - Example: "return my Sony headphones from order ORD-789" → formType: "return_request", prefilled: { orderId: "ORD-789", productName: "Sony headphones" }
+11. Bill explanation / why is my bill high (NOT a dispute): BillShockChart
+12. Connectivity / speed issues: TroubleshootingWidget
+13. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
+14. Plan comparison: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+15. Bundle queries: BundleBuilder ONLY
+16. Compare plans AND build bundle in same query: ComparisonTable + BundleBuilder
+17. Anything unrecognised: components=[], helpful fallback message
 - confidence: 0.0–1.0 based on how clearly the query maps to a component
-- parameters: extract relevant info e.g. { "planTypes": ["5G"], "issueType": "speed" }`;
+- parameters: extract all relevant info from the query`;
+
+// Build a domain-scoped system prompt
+function buildPrompt(domain) {
+    const allowedComponents = domain ? DOMAIN_COMPONENTS[domain] : null;
+    const scopedRegistry = allowedComponents
+        ? COMPONENT_REGISTRY.filter(c => allowedComponents.includes(c.name))
+        : COMPONENT_REGISTRY;
+
+    const contextLine = domain
+        ? DOMAIN_CONTEXT[domain]
+        : 'You are a UI orchestrator for a multi-domain platform covering telecommunications (FutureTel) and ecommerce (electronics/audio products).';
+
+    return `${contextLine}
+
+Given a user query, decide which UI components to render from the registry below.
+Select 0, 1, or 2 components — only select multiple when the query clearly needs both.
+
+Component registry:
+${JSON.stringify(scopedRegistry, null, 2)}
+
+Respond ONLY with valid JSON in this exact format (no markdown, no explanation):
+{
+  "intent": "snake_case_intent_name",
+  "components": ["ComponentName"],
+  "confidence": 0.92,
+  "message": "optional text if components is empty",
+  "parameters": {}
+}
+
+${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
+1. Greetings: components=[], friendly welcome message
+2. Return item / refund / send back product: DynamicForm, formType: "return_request", prefilled: { orderId: "<extracted if present>", productName: "<extracted if present>" }
+3. Track order / where is my order / delivery: OrderTracker, parameters: { orderId: "<extracted order ID if present>" }
+4. Product search / browse / recommend (headphones, earbuds, speakers): ProductRecommendations
+   - Extract: { category: "headphones|earbuds|speakers|all", budget: "<number if mentioned>", keywords: ["wireless","noise cancelling", etc.] }
+5. Contact / complaint: DynamicForm, formType: "contact_us"
+6. Feedback / review: DynamicForm, formType: "feedback"
+7. Anything unrecognised: components=[], helpful fallback message
+- confidence: 0.0–1.0 based on how clearly the query maps to a component
+- parameters: extract all relevant info from the query`
+
+: domain === 'novatek' ? `Rules (apply the FIRST matching rule):
+1. Greetings: components=[], friendly welcome message
+2. Bill disputes, overcharges, waiver requests: DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these
+3. Contact agent / talk to someone: DynamicForm, formType: "contact_us"
+4. Technical support / raise ticket: DynamicForm, formType: "technical_support"
+5. Feedback / review: DynamicForm, formType: "feedback"
+6. Port / transfer number: DynamicForm, formType: "port_request"
+7. DynamicForm parameters: { formType, prefilled: {fieldId: value}, aiContext }
+   - Example: "overcharged $45 for roaming" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45" }
+8. Bill explanation / why is my bill high (NOT a dispute): BillShockChart
+9. Connectivity / speed issues: TroubleshootingWidget
+10. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
+11. Plan comparison: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"]
+12. Bundle queries: BundleBuilder ONLY
+13. Compare plans AND build bundle: ComparisonTable + BundleBuilder
+14. Anything else: components=[], helpful fallback message
+- confidence: 0.0–1.0; parameters: extract relevant info from the query`
+
+: SYSTEM_PROMPT.split('\n').slice(16).join('\n')}`;
+}
 
 // Keyword fallback (used if Gemini is unavailable)
 // ORDER MATTERS: more specific / eForm patterns must come before broad plan/bill patterns
@@ -115,7 +218,7 @@ const FALLBACK_PATTERNS = [
         intent: 'greeting',
         keywords: ['hello', 'hi', 'hey', 'howdy', 'good morning', 'good afternoon', 'good evening'],
         components: [],
-        message: "Hi there! I can help you compare plans, build bundles, explain your bill, or troubleshoot connectivity issues. What would you like help with?"
+        message: "Hi there! I can help you browse products, track orders, compare plans, build bundles, explain your bill, or troubleshoot issues. What would you like help with?"
     },
     // eForms first — specific user actions that should not be confused with generic plan/bill queries
     {
@@ -148,6 +251,25 @@ const FALLBACK_PATTERNS = [
         components: ['DynamicForm'],
         parameters: { formType: 'contact_us', prefilled: {} }
     },
+    // Ecommerce patterns
+    {
+        intent: 'return_request_form',
+        keywords: ['return', 'refund', 'send back', 'return my order', 'return item', 'exchange'],
+        components: ['DynamicForm'],
+        parameters: { formType: 'return_request', prefilled: {} }
+    },
+    {
+        intent: 'track_order',
+        keywords: ['track', 'order status', 'where is my order', 'delivery status', 'my order', 'has it shipped', 'when will it arrive'],
+        components: ['OrderTracker'],
+        parameters: { orderId: null }
+    },
+    {
+        intent: 'browse_products',
+        keywords: ['headphones', 'earbuds', 'speakers', 'earphones', 'wireless', 'bluetooth', 'noise cancelling', 'show me products', 'recommend products', 'buy headphones', 'find me'],
+        components: ['ProductRecommendations'],
+        parameters: { category: 'all', budget: null, keywords: [] }
+    },
     // Generic component patterns
     {
         intent: 'select_device',
@@ -177,12 +299,19 @@ const FALLBACK_PATTERNS = [
     }
 ];
 
-function keywordFallback(query) {
+function keywordFallback(query, domain = null) {
     const lower = query.toLowerCase();
     let bestMatch = null;
     let highestScore = 0;
 
-    for (const pattern of FALLBACK_PATTERNS) {
+    const allowedComponents = domain ? DOMAIN_COMPONENTS[domain] : null;
+    const patterns = allowedComponents
+        ? FALLBACK_PATTERNS.filter(p =>
+            !p.components?.length || p.components.every(c => allowedComponents.includes(c))
+        )
+        : FALLBACK_PATTERNS;
+
+    for (const pattern of patterns) {
         let score = pattern.keywords.filter(k => lower.includes(k)).length;
         if (score > highestScore) {
             highestScore = score;
@@ -195,7 +324,7 @@ function keywordFallback(query) {
             intent: 'fallback',
             components: [],
             confidence: 0.6,
-            message: "I'm not sure I understood that. Try asking me to compare plans, build a bundle, explain your bill, or help with a connectivity issue.",
+            message: "I'm not sure I understood that. Try asking me to browse products, track an order, compare plans, build a bundle, explain your bill, or help with a connectivity issue.",
             parameters: {},
             processingTime: 0,
             description: 'Unknown query',
@@ -226,12 +355,15 @@ function keywordFallback(query) {
     };
 }
 
-export async function classifyIntent(query) {
+export async function classifyIntent(query, domain = null) {
     const startTime = performance.now();
+
+    // Build domain-scoped prompt if domain is set
+    const prompt = buildPrompt(domain);
 
     if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
         console.warn('[IntentClassifier] No Gemini API key — using keyword fallback');
-        const result = keywordFallback(query);
+        const result = keywordFallback(query, domain);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;
     }
@@ -241,7 +373,7 @@ export async function classifyIntent(query) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                system_instruction: { parts: [{ text: prompt }] },
                 contents: [{ parts: [{ text: query }] }],
                 generationConfig: {
                     responseMimeType: 'application/json',
