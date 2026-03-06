@@ -3,8 +3,8 @@
  * and select the right UI components from a skill registry
  */
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${GEMINI_API_KEY}`;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
 // Domain-scoped registries
 const DOMAIN_COMPONENTS = {
@@ -210,7 +210,7 @@ ${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
 : SYSTEM_PROMPT.split('\n').slice(16).join('\n')}`;
 }
 
-// Keyword fallback (used if Gemini is unavailable)
+// Keyword fallback (used if OpenAI is unavailable)
 // ORDER MATTERS: more specific / eForm patterns must come before broad plan/bill patterns
 // so that queries like "overcharged for roaming" match bill_waiver_form, not compare_plans
 const FALLBACK_PATTERNS = [
@@ -361,32 +361,36 @@ export async function classifyIntent(query, domain = null) {
     // Build domain-scoped prompt if domain is set
     const prompt = buildPrompt(domain);
 
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-        console.warn('[IntentClassifier] No Gemini API key — using keyword fallback');
+    if (!OPENAI_API_KEY || OPENAI_API_KEY === 'your_openai_api_key_here') {
+        console.warn('[IntentClassifier] No OpenAI API key — using keyword fallback');
         const result = keywordFallback(query, domain);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;
     }
 
     try {
-        const response = await fetch(GEMINI_URL, {
+        const response = await fetch(OPENAI_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: prompt }] },
-                contents: [{ parts: [{ text: query }] }],
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.1,
-                    maxOutputTokens: 300
-                }
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: query }
+                ],
+                temperature: 0.1,
+                max_tokens: 300,
+                response_format: { type: 'json_object' }
             })
         });
 
-        if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
+        if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
 
         const data = await response.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const raw = data.choices?.[0]?.message?.content;
         const parsed = JSON.parse(raw);
 
         return {
@@ -401,7 +405,7 @@ export async function classifyIntent(query, domain = null) {
         };
 
     } catch (err) {
-        console.error('[IntentClassifier] Gemini failed, using keyword fallback:', err.message);
+        console.error('[IntentClassifier] OpenAI failed, using keyword fallback:', err.message);
         const result = keywordFallback(query);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;
