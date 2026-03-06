@@ -1,12 +1,12 @@
-# Gamma.app Deck — Unified Generative UI
+# Gamma.app Deck — Unified Generative UI: Intent-Driven Adaptive Interfaces
 **CAIS 2026 | 30 Minutes | 12 Cards**
 
 > Paste each card's content directly into Gamma. Use "Classic" theme.
-> Cards marked [DEMO] are transition slides — minimal text, the demo is live.
+> Cards marked [DEMO] are transition slides — the demo runs live in browser.
 
 ---
 
-## Card Count Recommendation
+## Card Count
 
 | Purpose | Cards |
 |---------|-------|
@@ -29,7 +29,7 @@
 > Unified Generative UI
 
 **Subheadline**:
-> Orchestrating Intent Across App, Web, and Chat
+> Intent-Driven Adaptive Interfaces
 
 **Bottom line**:
 > Vicky · CAIS 2026
@@ -45,7 +45,7 @@
 **Type**: Statement card
 
 **Headline**:
-> Every telco has built the same thing three times.
+> Every business has built the same thing three times.
 
 **Body** (2 lines max):
 > A web flow. An app flow. A chat flow.
@@ -65,7 +65,7 @@
 > The customer doesn't think in workflows.
 
 **Left column — Customer says:**
-> "My bill is high, I'm travelling next month, and I think I want to upgrade."
+> "Show me wireless headphones under $100, and I also want to track my order."
 
 **Right column — System requires:**
 > Clear intent
@@ -127,6 +127,7 @@ AFTER    Intent → Orchestrator → Components → Channel
 | Multi-intent | Pick one | Compose two simultaneously |
 | New capability | Define new flow + routing rule | Register one component |
 | Channels | 3 codebases | 1 definition, 3 configs |
+| Domains | One vertical | Same engine, any industry |
 
 **Notes**: Read only the row labels. The audience reads the table.
 
@@ -140,13 +141,17 @@ AFTER    Intent → Orchestrator → Components → Channel
 > Let me show you.
 
 **Sub-text** (bullet list on card, acts as your cheat sheet):
-> 1. `"Compare 5G plans with roaming"` — intent → component, entities, 145ms
+> **FutureTel (Telecom)**
+> 1. `"Compare 5G plans with roaming"` — intent → component, entities, ~150ms
 > 2. `"I was overcharged $45 for roaming last month"` — form arrives pre-filled
-> 3. `"Why is my bill so high?"` — BillShockChart, single component
-> 4. Switch Web → App → Chat — same session ID, cross-channel continuity
-> 5. Repeat query 1 — cache hit: 12ms, 💾 badge
+> 3. Switch Web → App → Chat — same session, cross-channel continuity
+>
+> **FutureCommerce (Ecommerce)**
+> 4. `"Show me wireless headphones under $100"` — ProductRecommendations, budget + category extracted
+> 5. `"Where is my order ORD-789?"` — OrderTracker, timeline with status
+> 6. Repeat query — cache hit, ~12ms
 
-**Notes**: Switch to browser now. Stay there for the full 12 minutes. Come back to deck for Architecture.
+**Notes**: Switch to browser. Start with FutureTel domain, then switch to FutureCommerce to show domain-agnostic engine. Stay in browser for 12 minutes.
 
 ---
 
@@ -168,7 +173,7 @@ Session context is centralised. The LLM has no memory between calls.
 **3. Confidence is a first-class signal.**
 Not a debug metric. It gates what the system does next.
 
-**Notes**: Three points. One sentence each. Don't elaborate — the architecture diagram is in the appendix if needed.
+**Notes**: Three points. One sentence each. Don't elaborate.
 
 ---
 
@@ -192,7 +197,7 @@ Ambiguous query?      → Call Gemini      (150ms, ~$0.001)
 ```
 
 **Small text below:**
-> In a real telco, 60–70% of queries hit cache or keyword tier. AI cost is for the hard cases only — and those are exactly where rules would get it wrong.
+> 60–70% of queries hit cache or keyword tier. AI cost is for the hard cases only — and those are exactly where rules would get it wrong.
 
 **Notes**: "The cost argument dissolves when you see the tiered model."
 
@@ -207,9 +212,9 @@ Ambiguous query?      → Call Gemini      (150ms, ~$0.001)
 
 **Left — This is:**
 > A reference implementation
-> A working demonstration
+> A working demonstration across two domains
 > A pattern for intent-first architecture
-> Practical, not theoretical
+> Domain-agnostic by design
 
 **Right — This is not:**
 > A production claim
@@ -245,12 +250,12 @@ Ambiguous query?      → Call Gemini      (150ms, ~$0.001)
 
 | Question | Answer (one line) |
 |----------|------------------|
-| "Isn't this a chatbot?" | Chatbots respond. This orchestrates, composes UI, persists state, governs execution. |
-| "What about cost?" | Tiered classification + server-side cache = AI cost on ~20-30% of queries. |
+| "Isn't this a chatbot?" | Chatbots respond in text. This orchestrates structured UI, composes components, persists state, governs execution. |
+| "What about cost?" | Tiered classification + cache = AI cost on ~20-30% of queries. |
 | "Why not workflow engine?" | Workflow engines scale execution. They don't scale ambiguous intent mapping. |
-| "What about hallucinations?" | Component registry is the safeguard. Unknown components are ignored. Gemini can't invoke arbitrary tools. |
+| "What about hallucinations?" | Component registry is the safeguard. Unknown components are ignored. The AI can't invent UI. |
 | "Is this production-ready?" | It's a PoC. Architecture is production-shaped. Missing: server-side cache, policy enforcement, KYC. |
-| "How is this different from what we do?" | If you have binary intent-to-flow: you have Tier 1. This adds confidence routing, entity extraction, cross-channel from one definition. |
+| "Why two domains?" | To prove the engine is domain-agnostic. Same pipeline — telecom or ecommerce — only the component registry and data layer change. |
 
 ---
 
@@ -269,8 +274,6 @@ Ambiguous query?      → Call Gemini      (150ms, ~$0.001)
 
 ## Paste Order for Gamma
 
-Paste this as a single prompt into Gamma "Generate":
-
-> Create an 11-card presentation titled "Unified Generative UI" for CAIS 2026. The talk is 30 minutes including a live demo. Structure: Cover → The Problem (3 cards) → The Shift (2 cards) → Demo transition (1 card) → Architecture (2 cards) → Cost (1 card) → Scope (1 card) → Close (1 card). Audience: senior technology and AI conference. Tone: direct, systems thinking, no hype. Include speaker notes on each card. Use the Classic theme, dark background for title and close cards.
+> Create an 11-card presentation titled "Unified Generative UI: Intent-Driven Adaptive Interfaces" for CAIS 2026. The talk is 30 minutes including a live demo. Structure: Cover → The Problem (2 cards) → The Shift (2 cards) → Demo transition (1 card) → Architecture (2 cards) → Scope (1 card) → Close (1 card). Audience: senior technology and AI conference. Tone: direct, systems thinking, no hype. Include speaker notes on each card. Use the Classic theme, dark background for title and close cards.
 
 Then manually edit each card using the content above.

@@ -1,4 +1,4 @@
-# Gamma.app Deck — Unified Generative UI (Full)
+# Gamma.app Deck — Unified Generative UI: Intent-Driven Adaptive Interfaces (Full)
 **CAIS 2026 | 30 Minutes | 12 Cards**
 
 > Paste each card's content directly into Gamma. Use "Classic" theme.
@@ -29,7 +29,7 @@
 > Unified Generative UI
 
 **Subheadline**:
-> Orchestrating Intent Across App, Web, and Chat
+> Intent-Driven Adaptive Interfaces
 
 **Bottom line**:
 > Vicky · CAIS 2026
@@ -45,16 +45,18 @@
 **Type**: Statement card
 
 **Headline**:
-> Every telco has built the same thing three times.
+> Every business has built the same thing three times.
 
 **Body**:
 > A web flow. An app flow. A chat flow.
-> Same customer. Same intent. Three codebases that diverge over time.
-> Every new capability gets built three times. Every bug gets fixed three times. Every channel gets out of sync — slowly, invisibly.
+> Same customer. Same underlying need. Three implementations that drift apart over time.
+> Every new feature gets built three times. Every bug gets fixed three times. Every channel slowly becomes inconsistent with the others.
+> But duplication is only the visible cost. The deeper cost is rigidity — the system cannot adapt when the customer's intent changes mid-journey.
+> This is not a telecom problem. It is a retailer problem, a banking problem, a healthcare problem. Anywhere the same customer shows up through multiple interfaces, this pattern repeats.
 
 **Visual**: None. Text only. Big, stark.
 
-**Notes**: Pause after the headline. Let it land. Then: "This isn't a technology problem. It's an architectural assumption. The assumption that the channel comes first."
+**Notes**: Pause after the headline. Let it land. Then: "The issue is not the UI. The issue is the architecture assumption underneath it: that the channel comes first, and the experience can only do what that channel flow already expected." Transition: "That assumption breaks because customers do not arrive in neat workflow-shaped requests."
 
 ---
 
@@ -66,7 +68,7 @@
 > The customer doesn't think in workflows.
 
 **Left column — Customer says:**
-> "My bill is high, I'm travelling next month, and I think I want to upgrade — but only if it makes sense with roaming."
+> "Show me wireless headphones under $100, check where my order is, and if these are better, maybe I should return what I bought."
 
 **Right column — System requires:**
 > Clear intent
@@ -75,9 +77,9 @@
 > One thing at a time
 
 **Small text below**:
-> Four requirements. One sentence. The system loses before the conversation starts.
+> One sentence. Three intents: product discovery, order tracking, and return initiation. Most enterprise systems cannot process that as one moment. They force the customer to pick a flow, commit early, and repeat context. The failure happens before UX design even begins.
 
-**Notes**: Point to the right column. "This is the architectural gap. Not a UX gap. Not a product gap. The architecture assumes intent is clean. Real customers don't give you clean intent."
+**Notes**: Point to the right column. "The architecture assumes intent is clean and singular. The customer is neither. That gap is what this work addresses." Transition: "The fix is not a better chatbot. The fix is to invert the decision model."
 
 ---
 
@@ -99,13 +101,13 @@ AFTER    Intent → Orchestrator → Components → Channel
 ```
 
 **Small text below**:
-> Same customer. Same intent. The difference is where the decision is made.
+> Same customer. Same intent. The difference is where the decision is made. And critically — this works regardless of your industry vertical. The orchestrator doesn't care if it's a telecom plan or a product catalog.
 
 **Notes**: Walk through the AFTER flow slowly. "The channel becomes the last step, not the first. That one inversion changes everything downstream — maintenance, extensibility, cross-channel consistency."
 
 ---
 
-## Card 5 — The Thesis
+## Card 5 — The Governing Principle
 
 **Type**: Quote / statement card
 
@@ -113,14 +115,14 @@ AFTER    Intent → Orchestrator → Components → Channel
 > "LLM proposes. The system governs. Execution remains deterministic."
 
 **Second line:**
-> The AI is the planner. The orchestrator is the control plane. Not the other way around.
+> The AI is the planner. It proposes a structured plan. The orchestrator is the control plane. It decides what can actually run.
 
 **Small text below**:
-> The LLM never executes. It never has memory between calls. It never touches customer data. It writes a plan — and the orchestrator decides whether to run it.
+> The model does not execute tools directly. It does not own state. It only sees the user request and returns a plan — the hydrated UI data stays in the orchestration path. That separation is what makes this viable beyond a demo.
 
 **Visual**: Dark background. Centred. Maximum impact.
 
-**Notes**: Say this once. Don't repeat it. "This is the architecture principle we built on. Everything you're about to see comes back to this." Move on.
+**Notes**: Deliver this cleanly and once. "This is the governing principle of the whole architecture. Everything you are about to see comes back to this." Transition: "So if we already had intent-to-flow systems, what exactly is new here?"
 
 ---
 
@@ -141,11 +143,12 @@ AFTER    Intent → Orchestrator → Components → Channel
 | Entity extraction | Route only | Extract + pre-fill fields |
 | New capability | Define new flow + routing rule | Register one component |
 | Channels | 3 codebases | 1 definition, 3 rendering configs |
+| Domains | Single vertical | Same engine, any industry |
 
 **Small text below**:
-> The gap isn't intelligence. It's granularity. Binary routing vs parameterised composition.
+> The gap isn't intelligence. It's granularity. Binary routing vs parameterised composition. And it's portability — the same engine runs telecom today and ecommerce tomorrow.
 
-**Notes**: Read only the row labels. The audience reads the table. Then: "The last row is the business case. One definition, three channels. That's maintenance velocity."
+**Notes**: Read only the row labels. The audience reads the table. Then: "The last two rows are the business case. One definition, three channels. One engine, any domain. That's maintenance velocity and reuse."
 
 ---
 
@@ -157,13 +160,19 @@ AFTER    Intent → Orchestrator → Components → Channel
 > Let me show you.
 
 **Sub-text** (bullet list on card — your cheat sheet, visible to audience):
-> 1. `"Compare 5G plans with roaming"` — intent → component, entities extracted, 145ms
-> 2. `"I was overcharged $45 for roaming last month"` — form arrives pre-filled, no typing needed
-> 3. `"Why is my bill so high?"` — single component, BillShockChart, direct render
+> **Domain 1 — FutureTel (Telecom)**
+> 1. `"Compare 5G plans with roaming"` — intent → ComparisonTable, entities extracted, ~150ms
+> 2. `"I was overcharged $45 for roaming last month"` — DynamicForm arrives pre-filled, no typing needed
+> 3. `"Why is my bill so high?"` — BillShockChart, single component, direct render
 > 4. Switch Web → App → Chat — same session ID, same context, cross-channel continuity
-> 5. Repeat query 1 — cache hit: 12ms, 💾 badge appears, AI not called
+>
+> **Domain 2 — FutureCommerce (Ecommerce)**
+> 5. `"Show me wireless headphones under $100"` — ProductRecommendations, budget + category + keywords extracted
+> 6. `"Where is my order ORD-789?"` — OrderTracker, timeline with live status
+> 7. `"I want to return my Sony headphones"` — DynamicForm (return_request), pre-filled with product + order
+> 8. Repeat any query — cache hit: ~12ms, no AI call
 
-**Notes**: Switch to browser now. Stay there for the full 12 minutes. The audience can read the cheat sheet — that's intentional, it sets expectations. Come back to Card 8 (Architecture) when done.
+**Notes**: Switch to browser. Start with FutureTel domain to show telecom use cases (queries 1–4). Then click "Domains" → FutureCommerce to demonstrate domain-agnostic engine (queries 5–7). End with cache demo (query 8). Stay in browser for 12 minutes. Come back to Card 8.
 
 ---
 
@@ -177,13 +186,13 @@ AFTER    Intent → Orchestrator → Components → Channel
 **Content**:
 
 **1. The AI never executes.**
-Gemini outputs a JSON execution plan. The orchestrator validates it against a component registry and decides what runs. Unknown components are ignored. The AI cannot invoke arbitrary tools.
+Gemini outputs a JSON execution plan. The orchestrator validates it against a component registry (tool whitelist) and decides what runs. Unknown components are silently ignored. The AI cannot invoke arbitrary tools.
 
 **2. State lives in the orchestrator, not the LLM.**
 Session context — channel, history, confidence trace — is managed centrally. The LLM has no memory between calls. The session ID is the continuity mechanism, not the model.
 
 **3. Confidence is a first-class signal.**
-Not a debug metric. It gates what the system does next. Low confidence triggers fallback behaviour. High confidence on a cached query means Gemini isn't called at all.
+Not a debug metric. It gates what the system does next. Low confidence triggers fallback behaviour. High confidence on a cached query means Gemini isn't called at all. You saw this in the metrics panel during the demo.
 
 **Notes**: Three points. Two sentences each. "If you remember one thing from the architecture: the AI is advisory. The orchestrator is authoritative."
 
@@ -212,6 +221,7 @@ Ambiguous query?      → Call Gemini             (150ms, ~$0.001)
 > In production, 60–70% of queries hit cache or keyword tier.
 > AI cost applies only to the hard cases — and those are exactly the cases where rules-based routing would get it wrong anyway.
 > You're not paying for AI on every render. You're paying for AI where it earns its cost.
+> This tiering works identically across domains — telecom or ecommerce, the cost model is the same.
 
 **Notes**: "The cost argument dissolves when you see the tiered model. The AI budget is proportional to query ambiguity — which is proportional to where it creates value."
 
@@ -227,19 +237,21 @@ Ambiguous query?      → Call Gemini             (150ms, ~$0.001)
 **Left — This is:**
 > A working reference implementation
 > A demonstration of intent-first architecture
-> A pattern applicable to real telco product surfaces
+> A pattern proven across two domains (telecom + ecommerce)
 > A PoC with production-shaped architecture
+> Domain-agnostic by design — add a domain, register components, go
 
 **Right — This is not:**
 > A production deployment
 > A replacement for your existing workflow engine
 > A fully solved governance or policy framework
 > A claim that AI-generated UI is always better
+> A single-industry solution
 
 **Small text below**:
-> The governance skeleton is here. The component registry enforces a whitelist. What's missing for production: server-side cache, hard policy enforcement, KYC integration, load testing.
+> The governance skeleton is here. The component registry enforces a whitelist. What's missing for production: server-side cache, hard policy enforcement, KYC integration, load testing. The path is clear.
 
-**Notes**: "I'm not claiming to have solved enterprise AI for telco. I'm articulating a pattern and demonstrating it works. The production path is clear from here."
+**Notes**: "I'm not claiming to have solved enterprise AI. I'm articulating a pattern and demonstrating it works across industries. The production path is clear from here."
 
 ---
 
@@ -251,11 +263,11 @@ Ambiguous query?      → Call Gemini             (150ms, ~$0.001)
 > Stop asking which flow.
 
 **Second line:**
-> Start asking which components, with what data, at what confidence, for which channel.
+> Start asking which components, with what data, at what confidence, for which channel, in which domain.
 
 **Small text:**
 > That's the shift. That's the PoC. That's what this architecture looks like when it runs.
-> The components are registered. The orchestrator is live. The session persists across channels.
+> The components are registered. The orchestrator is live. The session persists across channels. The engine doesn't care if it's telecom or ecommerce.
 > It works today. The question is what you build with it.
 
 **Notes**: Let it sit. Don't rush to Q&A. "I'll take questions." Then wait.
@@ -275,8 +287,8 @@ Ambiguous query?      → Call Gemini             (150ms, ~$0.001)
 | "Why not a workflow engine?" | Workflow engines scale deterministic execution. They don't scale ambiguous intent mapping or multi-intent composition. These solve different problems. |
 | "What about hallucinations?" | The component registry is the safeguard. Gemini can only propose components that exist in the whitelist. Unknown components are silently ignored. The AI cannot invent UI. |
 | "Is this production-ready?" | Architecture is production-shaped. What's missing: server-side cache, hard policy enforcement, KYC integration. The path is clear. |
-| "How is this different from what we do?" | If you have binary intent-to-flow: you have Tier 1. This adds confidence routing, entity extraction + pre-fill, cross-channel from one definition, and multi-intent composition. |
-| "Can this replace our chatbot?" | No — and it shouldn't. Chatbots handle freeform conversation. This handles structured intent with UI output. They're complementary. |
+| "Why two domains?" | To prove the engine is domain-agnostic. Same intent classification → orchestration → hydration pipeline. Only the component registry and data layer change. Adding a third domain is a config change, not an architecture change. |
+| "Can this replace our chatbot?" | No — and it shouldn't. Chatbots handle freeform conversation. This handles structured intent with UI output. They're complementary, not competitive. |
 
 ---
 
@@ -295,6 +307,6 @@ Ambiguous query?      → Call Gemini             (150ms, ~$0.001)
 
 ## Paste Prompt for Gamma Generate
 
-> Create an 11-card presentation titled "Unified Generative UI" for CAIS 2026. 30 minutes, live demo included. Structure: Cover → Problem (2 cards) → Mismatch → The Shift → Thesis → Old vs New → Demo transition → Architecture → Cost → Scope → Close. Audience: senior technology and AI conference. Tone: direct, systems thinking, no hype. Include speaker notes. Classic theme, dark background on title, thesis, and close cards.
+> Create an 11-card presentation titled "Unified Generative UI: Intent-Driven Adaptive Interfaces" for CAIS 2026. 30 minutes, live demo included. Structure: Cover → Problem (2 cards) → The Shift → Thesis → Old vs New → Demo transition → Architecture → Cost → Scope → Close. Audience: senior technology and AI conference. Tone: direct, systems thinking, no hype. Include speaker notes. Classic theme, dark background on title, thesis, and close cards.
 
 Then manually paste each card's content from above.
