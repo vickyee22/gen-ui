@@ -9,6 +9,10 @@ import { Monitor, Smartphone, MessageCircle, Zap, Clock, Database, Brain, Eye, E
 
 import { classifyIntent } from './engine/intentClassifier';
 import { orchestrate, getCacheStats } from './engine/orchestrator';
+
+// Tier 1: Query-level cache — identical queries skip classification AND orchestration entirely
+const queryCache = new Map();
+const QUERY_CACHE_TTL = 60000;
 import { GenUIRenderer } from './components/genui';
 import { WebChannel, MobileChannel, ChatChannel } from './channels';
 
@@ -100,6 +104,19 @@ function App() {
     const totalStartTime = performance.now();
 
     try {
+      const queryCacheKey = `${domain}:${channel}:${query.trim().toLowerCase()}`;
+      const cached = queryCache.get(queryCacheKey);
+
+      if (cached && Date.now() - cached.timestamp < QUERY_CACHE_TTL) {
+        // Tier 1: Query-level cache hit — no AI call, no orchestration
+        const totalTime = Math.round(performance.now() - totalStartTime);
+        setMetrics({ ...cached.metrics, totalTime, fromCache: true });
+        setPayload(cached.result);
+        setIsProcessing(false);
+        setTimeout(() => setShowArchitecture(false), 500);
+        return;
+      }
+
       // Step 1: Classify Intent (Gemini AI)
       const intentResult = await classifyIntent(query, domain);
 
@@ -145,6 +162,35 @@ function App() {
       });
 
       setPayload(result);
+
+      // Store in query-level cache for instant repeat queries
+      queryCache.set(queryCacheKey, {
+        result,
+        metrics: {
+          sessionId,
+          completedSteps,
+          currentChannel: channel,
+          intent: intentResult.intent,
+          components: result.components?.map(c => c.name) || [],
+          confidence: intentResult.confidence,
+          entityConfidence,
+          planConfidence: Math.round(intentResult.confidence * 0.95),
+          intentTime: 0,
+          orchestrationTime: 0,
+          hydrationTime: 0,
+          cacheStats: getCacheStats(),
+          trace: [{ step: 1, name: 'Query Cache Hit', duration: 0, status: 'cached' }],
+          planSteps: (result.components?.length || 0) + 2,
+          toolsExecuted: result.components?.length || 0,
+          replans: 0,
+          policyChecks: (result.components?.length || 0) > 0 ? 3 : 2,
+          guardrailsTriggered: 0,
+          unsafeActionsRejected: 0,
+          hilRequired: false,
+          stateSize: Math.round(JSON.stringify(result).length / 1024 * 10) / 10
+        },
+        timestamp: Date.now()
+      });
 
     } catch (error) {
       console.error('GenUI Error:', error);
