@@ -195,14 +195,23 @@ body {
   width: 100%;
 }
 
-.genui-multi-wrapper.grid {
+/* Side-by-side grid only in web channel */
+.channel-container.web .genui-multi-wrapper.grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   align-items: start;
 }
 
 @media (max-width: 1024px) {
-  .genui-multi-wrapper.grid {
+  .channel-container.web .genui-multi-wrapper.grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Mobile and chat always stack vertically */
+.channel-container.mobile .genui-multi-wrapper,
+.channel-container.chat .genui-multi-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }

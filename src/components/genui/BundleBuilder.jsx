@@ -15,7 +15,7 @@ const serviceIcons = {
 
 export function BundleBuilder({ data, config = {} }) {
     const { layout = 'grid', interactive = true, showPreview = true } = config;
-    const [selected, setSelected] = useState({});
+    const [selected, setSelected] = useState(data.suggested || {});
     const [totalPrice, setTotalPrice] = useState(0);
 
     // Calculate total price when selection changes

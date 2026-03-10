@@ -201,9 +201,9 @@ ${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
 8. Bill explanation / why is my bill high (NOT a dispute): BillShockChart
 9. Connectivity / speed issues: TroubleshootingWidget
 10. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
-11. Plan comparison: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"]
-12. Bundle queries: BundleBuilder ONLY
-13. Compare plans AND build bundle: ComparisonTable + BundleBuilder
+11. Compare plans AND build bundle in same query (mentions both plans/comparison AND bundle/fiber/package): components: ["ComparisonTable", "BundleBuilder"], parameters: { planTypes: ["5G"], includeServices: ["Fiber", "Mobile"] }
+12. Plan comparison only: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+13. Bundle queries only: BundleBuilder, parameters: { includeServices: ["Fiber", "Mobile"] }
 14. Anything else: components=[], helpful fallback message
 - confidence: 0.0–1.0; parameters: extract relevant info from the query`
 
@@ -305,6 +305,27 @@ function keywordFallback(query, domain = null) {
     let highestScore = 0;
 
     const allowedComponents = domain ? DOMAIN_COMPONENTS[domain] : null;
+
+    // Multi-intent detection: plans + bundle in same query
+    const planKeywords = ['compare', 'plan', 'mobile plan', '5g', 'roaming', 'show me plans'];
+    const bundleKeywords = ['bundle', 'fiber', 'broadband', 'home internet', 'package'];
+    const hasPlan = planKeywords.some(k => lower.includes(k));
+    const hasBundle = bundleKeywords.some(k => lower.includes(k));
+    const canShowBoth = !allowedComponents || (allowedComponents.includes('ComparisonTable') && allowedComponents.includes('BundleBuilder'));
+
+    if (hasPlan && hasBundle && canShowBoth) {
+        return {
+            intent: 'compare_and_bundle',
+            components: ['ComparisonTable', 'BundleBuilder'],
+            confidence: 0.88,
+            message: null,
+            parameters: { planTypes: ['5G'], includeServices: ['Fiber', 'Mobile'] },
+            processingTime: 0,
+            description: 'compare_and_bundle',
+            originalQuery: query
+        };
+    }
+
     const patterns = allowedComponents
         ? FALLBACK_PATTERNS.filter(p =>
             !p.components?.length || p.components.every(c => allowedComponents.includes(c))

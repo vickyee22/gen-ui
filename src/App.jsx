@@ -129,7 +129,9 @@ function App() {
 
       // Extract prefilled field count for entity extraction confidence
       const prefilledCount = result.metadata?.parameters?.prefilled ? Object.keys(result.metadata.parameters.prefilled).length : 0;
-      const entityConfidence = prefilledCount > 0 ? Math.min(95, 60 + prefilledCount * 15) : intentResult.confidence;
+      const suggestedCount = result.components?.reduce((sum, c) => sum + (c.data?.suggested ? Object.keys(c.data.suggested).length : 0), 0) || 0;
+      const totalExtracted = prefilledCount + suggestedCount;
+      const entityConfidence = totalExtracted > 0 ? Math.min(95, 60 + totalExtracted * 15) : intentResult.confidence;
 
       setMetrics({
         sessionId,
@@ -500,10 +502,6 @@ function App() {
                       <span className="metric-label">Completed Steps</span>
                       <span className="metric-value">{metrics.completedSteps}</span>
                     </div>
-                    <div className="metric-row">
-                      <span className="metric-label">State Size</span>
-                      <span className="metric-value">{metrics.stateSize} KB</span>
-                    </div>
                   </div>
 
                   {/* Planning Metrics */}
@@ -525,10 +523,6 @@ function App() {
                       <span className="metric-label">Tools</span>
                       <span className="metric-value">{metrics.toolsExecuted}</span>
                     </div>
-                    <div className="metric-row">
-                      <span className="metric-label">Replans</span>
-                      <span className="metric-value">{metrics.replans}</span>
-                    </div>
                   </div>
 
                   {/* Governance Metrics */}
@@ -542,10 +536,6 @@ function App() {
                       <span className="metric-label">Guardrails Triggered</span>
                       <span className="metric-value">{metrics.guardrailsTriggered}</span>
                     </div>
-                    <div className="metric-row">
-                      <span className="metric-label">Unsafe Actions</span>
-                      <span className="metric-value">{metrics.unsafeActionsRejected}</span>
-                    </div>
                   </div>
 
                   {/* Confidence Breakdown */}
@@ -558,10 +548,6 @@ function App() {
                     <div className="metric-row">
                       <span className="metric-label">Entities</span>
                       <span className="metric-value">{(metrics.entityConfidence).toFixed(0)}%</span>
-                    </div>
-                    <div className="metric-row">
-                      <span className="metric-label">Plan</span>
-                      <span className="metric-value">{metrics.planConfidence}%</span>
                     </div>
                   </div>
 

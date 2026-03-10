@@ -554,7 +554,7 @@ function hydrateComparisonTable(params) {
 }
 
 function hydrateBundleBuilder(params) {
-    const { includeServices = ['Fiber', 'Mobile'] } = params;
+    const { includeServices = ['Fiber', 'Mobile'], fiberTier, mobilePlan } = params;
     const options = {};
 
     for (const service of includeServices) {
@@ -566,11 +566,24 @@ function hydrateBundleBuilder(params) {
     // Calculate bundle discount
     const discountPercent = includeServices.length >= 3 ? 20 : includeServices.length >= 2 ? 10 : 0;
 
+    // Build AI-suggested pre-selections based on extracted params
+    const suggested = {};
+    if (fiberTier) {
+        const tierMap = { '1gbps': 'fiber-1gbps', '1Gbps': 'fiber-1gbps', '2gbps': 'fiber-2gbps', '2Gbps': 'fiber-2gbps', '10gbps': 'fiber-10gbps', '10Gbps': 'fiber-10gbps' };
+        const matched = tierMap[fiberTier] || bundleOptions.Fiber?.find(f => f.speed?.toLowerCase().includes(fiberTier.toLowerCase()))?.id;
+        if (matched) suggested['Fiber'] = matched;
+    }
+    if (mobilePlan) {
+        const matched = bundleOptions.Mobile?.find(m => m.name.toLowerCase().includes(mobilePlan.toLowerCase()))?.id;
+        if (matched) suggested['Mobile'] = matched;
+    }
+
     return {
         title: 'Build Your Perfect Bundle',
         services: includeServices,
         options,
         bundleDiscount: discountPercent,
+        suggested,
         promotions: [
             { code: 'BUNDLE2026', discount: '$50 off first bill', expires: '31 Mar 2026' }
         ]
