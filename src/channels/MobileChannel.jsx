@@ -6,7 +6,7 @@
 import { motion } from 'framer-motion';
 import { Home, CreditCard, Gift, User, Send, Mic } from 'lucide-react';
 
-export function MobileChannel({ children, query, onQueryChange, onSubmit, suggestions }) {
+export function MobileChannel({ children, query, onQueryChange, onSubmit, onSuggestionClick, suggestions }) {
     return (
         <div className="mobile-channel">
             {/* Status Bar */}
@@ -61,16 +61,19 @@ export function MobileChannel({ children, query, onQueryChange, onSubmit, sugges
 
                 {suggestions && (
                     <div className="mobile-suggestions">
-                        {suggestions.slice(0, 2).map((s, i) => (
-                            <motion.button
-                                key={i}
-                                className="mobile-chip"
-                                onClick={() => onQueryChange(s)}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                {s}
-                            </motion.button>
-                        ))}
+                        {suggestions.slice(0, 2).map((s, i) => {
+                            const text = typeof s === 'string' ? s : s.text;
+                            return (
+                                <motion.button
+                                    key={i}
+                                    className="mobile-chip"
+                                    onClick={() => onSuggestionClick ? onSuggestionClick(s) : onQueryChange(text)}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    {text}
+                                </motion.button>
+                            );
+                        })}
                     </div>
                 )}
             </div>

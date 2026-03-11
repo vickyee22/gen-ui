@@ -6,13 +6,14 @@
 import { motion } from 'framer-motion';
 import { Search, User, ShoppingCart } from 'lucide-react';
 
-export function WebChannel({ children, query, onQueryChange, onSubmit, suggestions, brandName = 'FutureTel', navItems = [] }) {
+export function WebChannel({ children, query, onQueryChange, onSubmit, onSuggestionClick, suggestions, brandName = 'FutureTel', brandIcon: BrandIcon, heroTitle = 'How can we help you today?', heroSub = 'Ask anything about our plans, bills, or services', heroPlaceholder = 'Ask anything...', navItems = [] }) {
     return (
         <div className="web-channel">
             {/* Header */}
             <header className="web-header">
                 <div className="header-top">
                     <div className="logo">
+                        {BrandIcon && <BrandIcon size={22} style={{ color: 'var(--brand)', flexShrink: 0 }} />}
                         <span className="logo-text">{brandName}</span>
                     </div>
 
@@ -40,13 +41,13 @@ export function WebChannel({ children, query, onQueryChange, onSubmit, suggestio
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                 >
-                    <h1>How can we help you today?</h1>
-                    <p>Ask anything about our plans, bills, or services</p>
+                    <h1>{heroTitle}</h1>
+                    <p>{heroSub}</p>
 
                     <form className="genui-input" onSubmit={onSubmit}>
                         <input
                             type="text"
-                            placeholder="e.g., Compare 5G plans with roaming..."
+                            placeholder={heroPlaceholder}
                             value={query}
                             onChange={(e) => onQueryChange(e.target.value)}
                         />
@@ -55,15 +56,20 @@ export function WebChannel({ children, query, onQueryChange, onSubmit, suggestio
 
                     {suggestions && (
                         <div className="suggestions">
-                            {suggestions.map((s, i) => (
-                                <button
-                                    key={i}
-                                    className="suggestion-chip"
-                                    onClick={() => onQueryChange(s)}
-                                >
-                                    {s}
-                                </button>
-                            ))}
+                            {suggestions.map((s, i) => {
+                                const text = typeof s === 'string' ? s : s.text;
+                                const multi = typeof s === 'object' && s.multi;
+                                return (
+                                    <button
+                                        key={i}
+                                        className={`suggestion-chip${multi ? ' multi-intent' : ''}`}
+                                        onClick={() => onSuggestionClick ? onSuggestionClick(s) : onQueryChange(text)}
+                                    >
+                                        {multi && <span className="chip-multi-badge">⚡ multi</span>}
+                                        {text}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </motion.div>

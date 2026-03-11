@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, X, Minus, Sparkles } from 'lucide-react';
 
-export function ChatChannel({ children, query, onQueryChange, onSubmit, suggestions, isProcessing, brandName = 'FutureTel' }) {
+export function ChatChannel({ children, query, onQueryChange, onSubmit, onSuggestionClick, suggestions, isProcessing, brandName = 'FutureTel' }) {
     const [messages, setMessages] = useState([
         {
             id: 1,
@@ -40,14 +40,17 @@ export function ChatChannel({ children, query, onQueryChange, onSubmit, suggesti
         onSubmit(e);
     };
 
-    // Add GenUI response when children changes
+    // Add/replace GenUI response when children changes
     useEffect(() => {
         if (children && !isProcessing) {
-            setMessages(prev => [...prev, {
-                id: Date.now(),
-                type: 'genui',
-                timestamp: new Date()
-            }]);
+            setMessages(prev => {
+                const withoutGenUI = prev.filter(m => m.type !== 'genui');
+                return [...withoutGenUI, {
+                    id: Date.now(),
+                    type: 'genui',
+                    timestamp: new Date()
+                }];
+            });
         }
     }, [children, isProcessing]);
 
@@ -143,16 +146,19 @@ export function ChatChannel({ children, query, onQueryChange, onSubmit, suggesti
             {/* Suggestions */}
             {suggestions && messages.length <= 2 && (
                 <div className="chat-suggestions">
-                    {suggestions.slice(0, 2).map((s, i) => (
-                        <button
-                            key={i}
-                            className="chat-chip"
-                            onClick={() => onQueryChange(s)}
-                        >
-                            <Sparkles size={12} />
-                            {s}
-                        </button>
-                    ))}
+                    {suggestions.slice(0, 3).map((s, i) => {
+                        const text = typeof s === 'string' ? s : s.text;
+                        return (
+                            <button
+                                key={i}
+                                className="chat-chip"
+                                onClick={() => onSuggestionClick ? onSuggestionClick(s) : onQueryChange(text)}
+                            >
+                                <Sparkles size={12} />
+                                {text}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
