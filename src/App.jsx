@@ -525,11 +525,13 @@ function App() {
                   {/* Planning Metrics */}
                   <div className="metrics-section">
                     <div className="section-title">PLAN</div>
-                    <div className="metric-row">
+                    <div className="metric-row" style={{ alignItems: 'flex-start' }}>
                       <span className="metric-label">Components</span>
-                      <span className="metric-value">
+                      <span className="metric-value" style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
                         {metrics.components?.length > 0
-                          ? metrics.components.join(', ')
+                          ? metrics.components.map((c, i) => (
+                              <span key={i} style={{ fontSize: '11px', background: 'rgba(99,102,241,0.1)', color: 'var(--primary)', borderRadius: '4px', padding: '1px 6px', whiteSpace: 'nowrap' }}>{c}</span>
+                            ))
                           : '—'}
                       </span>
                     </div>
