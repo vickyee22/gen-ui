@@ -3,8 +3,8 @@
  * and select the right UI components from a skill registry
  */
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${GEMINI_API_KEY}`;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
 // Domain-scoped registries
 const DOMAIN_COMPONENTS = {
@@ -191,20 +191,22 @@ ${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
 
 : domain === 'novatek' ? `Rules (apply the FIRST matching rule):
 1. Greetings: components=[], friendly welcome message
-2. Bill disputes, overcharges, waiver requests: DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these
-3. Contact agent / talk to someone: DynamicForm, formType: "contact_us"
-4. Technical support / raise ticket: DynamicForm, formType: "technical_support"
-5. Feedback / review: DynamicForm, formType: "feedback"
-6. Port / transfer number: DynamicForm, formType: "port_request"
-7. DynamicForm parameters: { formType, prefilled: {fieldId: value}, aiContext }
+2. MULTI-INTENT — Bill explanation + raise waiver/dispute in same query (e.g. "why is my bill high and I want to raise a waiver", "explain my bill and dispute the roaming charge"): components: ["BillShockChart", "DynamicForm"], parameters: { billPeriod: "current", formType: "bill_waiver", prefilled: { issueType: "<roaming|overage|addon|other>", amount: "<extracted amount>" }, aiContext: "<query>" }
+3. MULTI-INTENT — Bill charge + compare better plans in same query (e.g. "why am I charged for roaming and show me plans that include it", "my bill is high from roaming — show me a plan with roaming included"): components: ["BillShockChart", "ComparisonTable"], parameters: { billPeriod: "current", planTypes: ["Roaming"] }
+4. Bill disputes/overcharges/waiver only (no bill explanation needed): DynamicForm, formType: "bill_waiver" — NEVER BillShockChart for these alone
+5. Contact agent / talk to someone: DynamicForm, formType: "contact_us"
+6. Technical support / raise ticket: DynamicForm, formType: "technical_support"
+7. Feedback / review: DynamicForm, formType: "feedback"
+8. Port / transfer number: DynamicForm, formType: "port_request"
+9. DynamicForm parameters: { formType, prefilled: {fieldId: value}, aiContext }
    - Example: "overcharged $45 for roaming" → formType: "bill_waiver", prefilled: { issueType: "roaming", amount: "45" }
-8. Bill explanation / why is my bill high (NOT a dispute): BillShockChart
-9. Connectivity / speed issues: TroubleshootingWidget
-10. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
-11. Compare plans AND build bundle in same query (mentions both plans/comparison AND bundle/fiber/package): components: ["ComparisonTable", "BundleBuilder"], parameters: { planTypes: ["5G"], includeServices: ["Fiber", "Mobile"] }
-12. Plan comparison only: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
-13. Bundle queries only: BundleBuilder, parameters: { includeServices: ["Fiber", "Mobile"] }
-14. Anything else: components=[], helpful fallback message
+10. Bill explanation only / why is my bill high (no dispute intent): BillShockChart, parameters: { billPeriod: "current" }
+11. Connectivity / speed issues: TroubleshootingWidget
+12. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
+13. MULTI-INTENT — Compare plans AND build bundle in same query: components: ["ComparisonTable", "BundleBuilder"], parameters: { planTypes: ["5G"], includeServices: ["Fiber", "Mobile"] }
+14. Plan comparison only: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+15. Bundle queries only: BundleBuilder, parameters: { includeServices: ["Fiber", "Mobile"] }
+16. Anything else: components=[], helpful fallback message
 - confidence: 0.0–1.0; parameters: extract relevant info from the query`
 
 : SYSTEM_PROMPT.split('\n').slice(16).join('\n')}`;
@@ -306,7 +308,48 @@ function keywordFallback(query, domain = null) {
 
     const allowedComponents = domain ? DOMAIN_COMPONENTS[domain] : null;
 
-    // Multi-intent detection: plans + bundle in same query
+    // Multi-intent detection — order matters: most specific first
+
+    const billKeywords = ['bill', 'billing', 'charged', 'charge', 'why is my bill', 'bill so high', 'bill is high'];
+    const waiverKeywords = ['waiver', 'waive', 'dispute', 'raise waiver', 'raise a waiver', 'contest', 'raise a dispute'];
+    const hasBill = billKeywords.some(k => lower.includes(k));
+    const hasWaiver = waiverKeywords.some(k => lower.includes(k));
+    const canShowBillWaiver = !allowedComponents || (allowedComponents.includes('BillShockChart') && allowedComponents.includes('DynamicForm'));
+
+    // Bill explain + waiver → BillShockChart + DynamicForm
+    if (hasBill && hasWaiver && canShowBillWaiver) {
+        return {
+            intent: 'bill_explain_and_waiver',
+            components: ['BillShockChart', 'DynamicForm'],
+            confidence: 0.92,
+            message: null,
+            parameters: { billPeriod: 'current', formType: 'bill_waiver', prefilled: {}, aiContext: query },
+            processingTime: 0,
+            description: 'bill_explain_and_waiver',
+            originalQuery: query
+        };
+    }
+
+    const comparePlanKeywords = ['compare', 'plan', 'show me plan', 'better plan', 'plans that include', 'plan with roaming', 'cheaper plan', 'switch plan'];
+    const hasComparePlan = comparePlanKeywords.some(k => lower.includes(k));
+    const canShowBillCompare = !allowedComponents || (allowedComponents.includes('BillShockChart') && allowedComponents.includes('ComparisonTable'));
+
+    // Bill charge + compare plans → BillShockChart + ComparisonTable
+    if (hasBill && hasComparePlan && canShowBillCompare) {
+        const planType = lower.includes('roaming') ? ['Roaming'] : lower.includes('5g') ? ['5G'] : ['5G', 'Roaming'];
+        return {
+            intent: 'bill_explain_and_compare',
+            components: ['BillShockChart', 'ComparisonTable'],
+            confidence: 0.90,
+            message: null,
+            parameters: { billPeriod: 'current', planTypes: planType },
+            processingTime: 0,
+            description: 'bill_explain_and_compare',
+            originalQuery: query
+        };
+    }
+
+    // Plans + bundle in same query
     const planKeywords = ['compare', 'plan', 'mobile plan', '5g', 'roaming', 'show me plans'];
     const bundleKeywords = ['bundle', 'fiber', 'broadband', 'home internet', 'package'];
     const hasPlan = planKeywords.some(k => lower.includes(k));
@@ -382,32 +425,36 @@ export async function classifyIntent(query, domain = null) {
     // Build domain-scoped prompt if domain is set
     const prompt = buildPrompt(domain);
 
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-        console.warn('[IntentClassifier] No Gemini API key — using keyword fallback');
+    if (!OPENAI_API_KEY) {
+        console.warn('[IntentClassifier] No OpenAI API key — using keyword fallback');
         const result = keywordFallback(query, domain);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;
     }
 
     try {
-        const response = await fetch(GEMINI_URL, {
+        const response = await fetch(OPENAI_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
             body: JSON.stringify({
-                system_instruction: { parts: [{ text: prompt }] },
-                contents: [{ parts: [{ text: query }] }],
-                generationConfig: {
-                    responseMimeType: 'application/json',
-                    temperature: 0.1,
-                    maxOutputTokens: 300
-                }
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: query }
+                ],
+                temperature: 0.1,
+                max_tokens: 300,
+                response_format: { type: 'json_object' }
             })
         });
 
-        if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
+        if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
 
         const data = await response.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const raw = data.choices?.[0]?.message?.content;
         const parsed = JSON.parse(raw);
 
         return {
@@ -422,7 +469,7 @@ export async function classifyIntent(query, domain = null) {
         };
 
     } catch (err) {
-        console.error('[IntentClassifier] Gemini failed, using keyword fallback:', err.message);
+        console.error('[IntentClassifier] OpenAI failed, using keyword fallback:', err.message);
         const result = keywordFallback(query);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;

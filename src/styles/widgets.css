@@ -259,7 +259,7 @@
 .architecture-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(2, 6, 23, 0.9);
+    background: rgba(248, 250, 252, 0.92);
     backdrop-filter: var(--blur-bg);
     display: flex;
     align-items: center;
@@ -279,15 +279,16 @@
     align-items: center;
     gap: 12px;
     padding: 24px;
-    background: var(--bg-card);
+    background: #ffffff;
     border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    color: var(--primary-light);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    color: var(--primary);
 }
 
 .flow-step span {
     font-size: 13px;
-    color: var(--text-secondary);
+    color: #475569;
 }
 
 .flow-arrow {
@@ -477,12 +478,11 @@
     bottom: 20px;
     left: 16px;
     width: 300px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
     border-radius: var(--radius-lg);
     padding: 14px;
-    backdrop-filter: var(--blur-bg);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
     font-size: 12px;
     z-index: 80;
     overflow-y: auto;
@@ -558,8 +558,8 @@
 
 .metrics-section {
     padding: 10px;
-    background: rgba(99, 102, 241, 0.05);
-    border: 1px solid rgba(99, 102, 241, 0.1);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: var(--radius-md);
 }
 
@@ -568,7 +568,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--primary-light);
+    color: var(--primary);
     margin-bottom: 8px;
     display: block;
 }
@@ -578,18 +578,18 @@
     justify-content: space-between;
     align-items: center;
     padding: 4px 0;
-    color: var(--text-secondary);
+    color: #475569;
 }
 
 .metric-row .metric-label {
     font-size: 11px;
-    color: var(--text-muted);
+    color: #64748b;
     text-transform: capitalize;
 }
 
 .metric-row .metric-value {
     font-weight: 600;
-    color: var(--text-primary);
+    color: #0f172a;
     font-family: var(--font-mono);
 }
 

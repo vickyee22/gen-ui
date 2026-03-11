@@ -6,33 +6,35 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Monitor, Smartphone, MessageCircle, Zap, Clock, Database, Brain, Eye, EyeOff, ArrowLeft, Radio, ShoppingBag, Wifi, Tv, HelpCircle, Headphones, Speaker, Package, RotateCcw } from 'lucide-react';
-
 import { classifyIntent } from './engine/intentClassifier';
 import { orchestrate, getCacheStats } from './engine/orchestrator';
+import { GenUIRenderer } from './components/genui';
+import { WebChannel, MobileChannel, ChatChannel } from './channels';
+import './index.css';
 
 // Tier 1: Query-level cache — identical queries skip classification AND orchestration entirely
 const queryCache = new Map();
 const QUERY_CACHE_TTL = 60000;
-import { GenUIRenderer } from './components/genui';
-import { WebChannel, MobileChannel, ChatChannel } from './channels';
-
-import './index.css';
 
 // Domain-specific suggestions
 const DOMAIN_SUGGESTIONS = {
   novatek: [
-    "Compare 5G plans with roaming",
-    "I was overcharged $45 for roaming last month",
-    "Why is my bill so high this month?",
-    "Port my number to FutureTel",
-    "My internet is slow"
+    // Script queries (single-intent)
+    { text: "Compare 5G plans with roaming" },
+    { text: "I was overcharged $45 for roaming last month" },
+    { text: "Why is my bill so high?" },
+    // Multi-intent (new capability)
+    { text: "Why is my bill high and I want to raise a waiver", multi: true },
+    { text: "I was charged for roaming — explain my bill and show plans that include it", multi: true },
   ],
   futurecommerce: [
-    "Show me wireless headphones under $100",
-    "Where is my order ORD-789?",
-    "Find me noise cancelling earbuds",
-    "I want to return my Sony headphones from order ORD-789",
-    "Best bluetooth speakers under $100"
+    // Script queries (single-intent)
+    { text: "Show me wireless headphones under $100" },
+    { text: "Where is my order ORD-789?" },
+    { text: "I want to return my Sony headphones from order ORD-789" },
+    // Multi-intent (new capability)
+    { text: "Return my Sony headphones and find a replacement under $150", multi: true },
+    { text: "Track order ORD-789 and show similar products in case it's delayed", multi: true },
   ]
 };
 
@@ -41,7 +43,8 @@ const DOMAIN_CONFIG = {
     label: 'FutureTel',
     tagline: 'Telecom · Plans · Billing · Support',
     heroTitle: 'How can we help you today?',
-    heroSub: 'Ask anything about your plans, bills, or services',
+    heroSub: 'Ask about your bill, plans, roaming, or report an issue',
+    heroPlaceholder: 'e.g., Why is my bill high and what plan should I switch to?',
     icon: Radio,
     accent: 'teal',
     nav: [
@@ -54,8 +57,9 @@ const DOMAIN_CONFIG = {
   futurecommerce: {
     label: 'FutureCommerce',
     tagline: 'Audio · Electronics · Orders · Returns',
-    heroTitle: 'What are you looking for?',
-    heroSub: 'Browse products, track orders, or get support',
+    heroTitle: 'What can we help you with?',
+    heroSub: 'Find products, track orders, start a return, or compare items',
+    heroPlaceholder: 'e.g., Return my Sony headphones and find a replacement under $150',
     icon: ShoppingBag,
     accent: 'indigo',
     nav: [
@@ -92,9 +96,10 @@ function App() {
   const [metricsTab, setMetricsTab] = useState('overview'); // 'overview' or 'trace'
   const [showMetrics, setShowMetrics] = useState(true);
 
-  const handleSubmit = useCallback(async (e) => {
+  const handleSubmit = useCallback(async (e, overrideQuery) => {
     e?.preventDefault();
-    if (!query.trim() || isProcessing) return;
+    const activeQuery = overrideQuery || query;
+    if (!activeQuery.trim() || isProcessing) return;
 
     setIsProcessing(true);
     setShowArchitecture(true);
@@ -104,7 +109,7 @@ function App() {
     const totalStartTime = performance.now();
 
     try {
-      const queryCacheKey = `${domain}:${channel}:${query.trim().toLowerCase()}`;
+      const queryCacheKey = `${domain}:${channel}:${activeQuery.trim().toLowerCase()}`;
       const cached = queryCache.get(queryCacheKey);
 
       if (cached && Date.now() - cached.timestamp < QUERY_CACHE_TTL) {
@@ -118,7 +123,7 @@ function App() {
       }
 
       // Step 1: Classify Intent (Gemini AI)
-      const intentResult = await classifyIntent(query, domain);
+      const intentResult = await classifyIntent(activeQuery, domain);
 
       // Step 2: Orchestrate (component selection + data hydration)
       const result = await orchestrate(intentResult, channel);
@@ -140,8 +145,9 @@ function App() {
         intent: intentResult.intent,
         components: result.components?.map(c => c.name) || [],
         confidence: intentResult.confidence,
+        isAIClassified: intentResult.processingTime > 50,
         entityConfidence,
-        planConfidence: Math.round(intentResult.confidence * 0.95), // Slightly lower than intent confidence
+        planConfidence: Math.round(intentResult.confidence * 0.95),
         intentTime: intentResult.processingTime,
         orchestrationTime: result.orchestrationTime,
         hydrationTime: maxHydrationTime,
@@ -175,6 +181,7 @@ function App() {
           intent: intentResult.intent,
           components: result.components?.map(c => c.name) || [],
           confidence: intentResult.confidence,
+          isAIClassified: intentResult.processingTime > 50,
           entityConfidence,
           planConfidence: Math.round(intentResult.confidence * 0.95),
           intentTime: 0,
@@ -204,6 +211,12 @@ function App() {
 
   const handleQueryChange = (newQuery) => {
     setQuery(newQuery);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    const text = typeof suggestion === 'string' ? suggestion : suggestion.text;
+    setQuery(text);
+    handleSubmit(null, text);
   };
 
   const handleChannelChange = (newChannel) => {
@@ -239,9 +252,14 @@ function App() {
       query,
       onQueryChange: handleQueryChange,
       onSubmit: handleSubmit,
+      onSuggestionClick: handleSuggestionClick,
       suggestions,
       isProcessing,
       brandName: domainCfg?.label || 'FutureTel',
+      brandIcon: domainCfg?.icon || null,
+      heroTitle: domainCfg?.heroTitle,
+      heroSub: domainCfg?.heroSub,
+      heroPlaceholder: domainCfg?.heroPlaceholder,
       navItems: domainCfg?.nav || []
     };
 
@@ -543,7 +561,18 @@ function App() {
                     <div className="section-title">CONFIDENCE</div>
                     <div className="metric-row">
                       <span className="metric-label">Intent</span>
-                      <span className="metric-value">{(metrics.confidence * 100).toFixed(0)}%</span>
+                      <span className="metric-value">
+                        {metrics.isAIClassified
+                          ? `${(metrics.confidence * 100).toFixed(0)}%`
+                          : <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>keyword</span>
+                        }
+                      </span>
+                    </div>
+                    <div className="metric-row">
+                      <span className="metric-label">Classifier</span>
+                      <span className="metric-value" style={{ fontSize: '11px' }}>
+                        {metrics.isAIClassified ? 'GPT-4o mini' : 'Fallback'}
+                      </span>
                     </div>
                     <div className="metric-row">
                       <span className="metric-label">Entities</span>
