@@ -203,8 +203,8 @@ ${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
 10. Bill explanation only / why is my bill high (no dispute intent): BillShockChart, parameters: { billPeriod: "current" }
 11. Connectivity / speed issues: TroubleshootingWidget
 12. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
-13. MULTI-INTENT — Compare plans AND build bundle in same query: components: ["ComparisonTable", "BundleBuilder"], parameters: { planTypes: ["5G"], includeServices: ["Fiber", "Mobile"] }
-14. Plan comparison only: ComparisonTable, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]
+13. MULTI-INTENT — ONLY when query explicitly mentions BOTH plans/comparison AND bundle/fiber/broadband/package/home internet (e.g. "compare plans and build a bundle", "show 5G plans and fiber options"): components: ["ComparisonTable", "BundleBuilder"]. DO NOT use this rule for plain plan comparison queries like "compare 5G plans with roaming" — that is rule 14.
+14. Plan comparison (any query about plans, 5G, roaming, data — WITHOUT bundle/fiber/broadband/package): ComparisonTable ONLY, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]. Example: "Compare 5G plans with roaming" → ComparisonTable only.
 15. Bundle queries only: BundleBuilder, parameters: { includeServices: ["Fiber", "Mobile"] }
 16. Anything else: components=[], helpful fallback message
 - confidence: 0.0–1.0; parameters: extract relevant info from the query`
