@@ -207,7 +207,7 @@ function App() {
       setIsProcessing(false);
       setTimeout(() => setShowArchitecture(false), 500);
     }
-  }, [query, channel, isProcessing, completedSteps, sessionId]);
+  }, [query, channel, isProcessing, completedSteps, sessionId, domain]);
 
   const handleQueryChange = (newQuery) => {
     setQuery(newQuery);
