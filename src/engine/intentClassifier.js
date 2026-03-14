@@ -12,10 +12,6 @@ const DOMAIN_COMPONENTS = {
     futurecommerce: ['ProductRecommendations', 'OrderTracker', 'DynamicForm']
 };
 
-const DOMAIN_FORM_TYPES = {
-    novatek: ['bill_waiver', 'technical_support', 'feedback', 'contact_us', 'port_request'],
-    futurecommerce: ['return_request', 'contact_us', 'feedback']
-};
 
 const DOMAIN_CONTEXT = {
     novatek: 'You are a UI orchestrator for FutureTel, a telecommunications company.',
@@ -203,9 +199,9 @@ ${domain === 'futurecommerce' ? `Rules (apply the FIRST matching rule):
 10. Bill explanation only / why is my bill high (no dispute intent): BillShockChart, parameters: { billPeriod: "current" }
 11. Connectivity / speed issues: TroubleshootingWidget
 12. Device / phone selection: ComparisonTable, parameters: { planTypes: ["Device"] }
-13. MULTI-INTENT — ONLY when query explicitly mentions BOTH plans/comparison AND bundle/fiber/broadband/package/home internet (e.g. "compare plans and build a bundle", "show 5G plans and fiber options"): components: ["ComparisonTable", "BundleBuilder"]. DO NOT use this rule for plain plan comparison queries like "compare 5G plans with roaming" — that is rule 14.
-14. Plan comparison (any query about plans, 5G, roaming, data — WITHOUT bundle/fiber/broadband/package): ComparisonTable ONLY, parameters: { planTypes: ["5G"] } or ["Roaming"] or ["5G","Roaming"]. Example: "Compare 5G plans with roaming" → ComparisonTable only.
-15. Bundle queries only: BundleBuilder, parameters: { includeServices: ["Fiber", "Mobile"] }
+13. Plan comparison (any query about plans, 5G, roaming, data, coverage): ComparisonTable ONLY. Example: "Compare 5G plans with roaming" → ["ComparisonTable"]. NEVER add BundleBuilder here.
+14. Bundle queries: BundleBuilder ONLY when the query literally contains one of these words: bundle, fiber, broadband, home internet, TV package. "Roaming" and "5G" are NOT bundle keywords.
+15. MULTI-INTENT — ComparisonTable + BundleBuilder ONLY when query contains BOTH a plan comparison word AND a literal bundle/fiber/broadband word (e.g. "compare 5G plans and build a fiber bundle").
 16. Anything else: components=[], helpful fallback message
 - confidence: 0.0–1.0; parameters: extract relevant info from the query`
 
