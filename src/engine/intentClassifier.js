@@ -452,9 +452,22 @@ export async function classifyIntent(query, domain = null) {
 
             if (response.ok) break;
 
-            const retryable = response.status === 429 || response.status >= 500;
+            // A 429 means either transient rate limiting or exhausted credits;
+            // only the former is worth retrying.
+            let errorCode = null;
+            if (response.status === 429) {
+                errorCode = await response.clone().json()
+                    .then(body => body?.error?.code)
+                    .catch(() => null);
+            }
+            const outOfCredits = errorCode === 'insufficient_quota'
+                || errorCode === 'credit_balance_exhausted';
+
+            const retryable = (response.status === 429 && !outOfCredits) || response.status >= 500;
             if (!retryable || attempt >= 2) {
-                throw new Error(`OpenAI API error: ${response.status}`);
+                throw new Error(outOfCredits
+                    ? 'OpenAI credits exhausted — add credits to re-enable AI classification'
+                    : `OpenAI API error: ${response.status}`);
             }
 
             const retryAfter = Number(response.headers.get('retry-after')) * 1000;
