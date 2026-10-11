@@ -237,6 +237,88 @@
     font-weight: 500;
 }
 
+@media (max-width: 768px) {
+    .header-top {
+        padding: 12px 16px;
+        gap: 12px;
+    }
+
+    /* Nav links don't fit alongside the logo and actions at phone width */
+    .nav-main {
+        display: none;
+    }
+
+    .logo-text {
+        font-size: 20px;
+    }
+
+    .header-actions {
+        gap: 4px;
+    }
+
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .web-hero {
+        padding: 32px 16px;
+    }
+
+    .hero-content h1 {
+        font-size: 26px;
+        line-height: 1.25;
+        margin-bottom: 8px;
+    }
+
+    .hero-content p {
+        font-size: 15px;
+        margin-bottom: 20px;
+    }
+
+    .genui-input {
+        max-width: 100%;
+    }
+
+    .genui-input input {
+        padding: 14px 16px;
+        /* 16px keeps iOS Safari from zooming on focus */
+        font-size: 16px;
+        min-width: 0;
+    }
+
+    .genui-input button {
+        padding: 14px 20px;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .suggestions {
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .suggestion-chip {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    .web-main {
+        padding: 20px 16px;
+    }
+
+    .web-footer {
+        padding: 16px;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        gap: 6px;
+        text-align: center;
+        font-size: 12px;
+    }
+}
+
 /* Mobile Channel Styles */
 .mobile-channel {
     width: 375px;

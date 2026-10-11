@@ -215,3 +215,57 @@ body {
   flex-direction: column;
   gap: 16px;
 }
+
+@media (max-width: 768px) {
+  .channel-selector {
+    top: 8px;
+    gap: 8px;
+    padding: 6px 10px;
+    max-width: calc(100vw - 16px);
+  }
+
+  /* The domain nav bar is 40px tall and fixed, so clear it */
+  .domain-novatek .channel-selector,
+  .domain-futurecommerce .channel-selector {
+    top: 48px;
+  }
+
+  .selector-label {
+    display: none;
+  }
+
+  .selector-buttons button {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .channel-container {
+    padding: 72px 12px 72px;
+  }
+
+  .domain-novatek .channel-container,
+  .domain-futurecommerce .channel-container {
+    padding-top: 100px;
+  }
+
+  .channel-container.web {
+    padding: 96px 0 72px;
+  }
+
+  .domain-novatek .channel-container.web,
+  .domain-futurecommerce .channel-container.web {
+    padding-top: 124px;
+  }
+
+  .channel-container.chat {
+    padding-right: 12px;
+    padding-bottom: 80px;
+  }
+
+  /* Scale the phone mockup down to fit a real phone viewport */
+  .channel-container.mobile .mobile-channel {
+    transform: scale(0.82);
+    transform-origin: top center;
+    margin-bottom: -140px;
+  }
+}

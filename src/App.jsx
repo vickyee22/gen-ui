@@ -94,7 +94,10 @@ function App() {
   const [metrics, setMetrics] = useState(null);
   const [showArchitecture, setShowArchitecture] = useState(false);
   const [metricsTab, setMetricsTab] = useState('overview'); // 'overview' or 'trace'
-  const [showMetrics, setShowMetrics] = useState(true);
+  // Collapsed by default on phones, where the panel would cover the generated UI
+  const [showMetrics, setShowMetrics] = useState(
+    () => !(typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches)
+  );
 
   const handleSubmit = useCallback(async (e, overrideQuery) => {
     e?.preventDefault();
