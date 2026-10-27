@@ -429,25 +429,53 @@ export async function classifyIntent(query, domain = null) {
     }
 
     try {
-        const response = await fetch(OPENAI_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: prompt },
-                    { role: 'user', content: query }
-                ],
-                temperature: 0.1,
-                max_tokens: 300,
-                response_format: { type: 'json_object' }
-            })
-        });
+        let response;
+        // Rate limits are transient — retry briefly before falling back to keywords
+        for (let attempt = 0; ; attempt++) {
+            response = await fetch(OPENAI_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o-mini',
+                    messages: [
+                        { role: 'system', content: prompt },
+                        { role: 'user', content: query }
+                    ],
+                    temperature: 0.1,
+                    max_tokens: 300,
+                    response_format: { type: 'json_object' }
+                })
+            });
 
-        if (!response.ok) throw new Error(`OpenAI API error: ${response.status}`);
+            if (response.ok) break;
+
+            // A 429 means either transient rate limiting or exhausted credits;
+            // only the former is worth retrying.
+            let errorCode = null;
+            if (response.status === 429) {
+                errorCode = await response.clone().json()
+                    .then(body => body?.error?.code)
+                    .catch(() => null);
+            }
+            const outOfCredits = errorCode === 'insufficient_quota'
+                || errorCode === 'credit_balance_exhausted';
+
+            const retryable = (response.status === 429 && !outOfCredits) || response.status >= 500;
+            if (!retryable || attempt >= 2) {
+                throw new Error(outOfCredits
+                    ? 'OpenAI credits exhausted — add credits to re-enable AI classification'
+                    : `OpenAI API error: ${response.status}`);
+            }
+
+            const retryAfter = Number(response.headers.get('retry-after')) * 1000;
+            const delay = Number.isFinite(retryAfter) && retryAfter > 0
+                ? retryAfter
+                : 400 * 2 ** attempt;
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
 
         const data = await response.json();
         const raw = data.choices?.[0]?.message?.content;
@@ -466,7 +494,7 @@ export async function classifyIntent(query, domain = null) {
 
     } catch (err) {
         console.error('[IntentClassifier] OpenAI failed, using keyword fallback:', err.message);
-        const result = keywordFallback(query);
+        const result = keywordFallback(query, domain);
         result.processingTime = Math.round(performance.now() - startTime);
         return result;
     }

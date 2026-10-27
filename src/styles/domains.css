@@ -106,6 +106,29 @@
     color: #14b8a6;
 }
 
+/* EShop Buyflow — rose, full width */
+.domain-card-wide {
+    grid-column: 1 / -1;
+}
+
+.domain-card-rose {
+    border-color: #fecdd3;
+}
+
+.domain-card-rose:hover {
+    border-color: #e11d48;
+    box-shadow: 0 8px 32px rgba(225, 29, 72, 0.15);
+}
+
+.domain-card-rose .domain-card-icon {
+    background: rgba(225, 29, 72, 0.12);
+    color: #e11d48;
+}
+
+.domain-card-rose .domain-card-cta {
+    color: #e11d48;
+}
+
 /* FutureCommerce — indigo */
 .domain-card-indigo {
     border-color: #c7d2fe;
