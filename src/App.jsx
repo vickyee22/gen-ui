@@ -86,7 +86,7 @@ function App() {
 
   // Domain selection
   // null = landing page; 'eshop' = standalone EShop buyflow (deep link: #eshop)
-  const [domain, setDomain] = useState(() => (window.location.hash === '#eshop' ? 'eshop' : null));
+  const [domain, setDomain] = useState(() => (window.location.hash.startsWith('#eshop') ? 'eshop' : null));
 
   // UI state
   const [channel, setChannel] = useState('web');
@@ -246,7 +246,7 @@ function App() {
   const handleSelectDomain = (d) => {
     setDomain(d);
     if (d === 'eshop') window.history.replaceState(null, '', '#eshop');
-    else if (window.location.hash === '#eshop') window.history.replaceState(null, '', window.location.pathname);
+    else if (window.location.hash.startsWith('#eshop')) window.history.replaceState(null, '', window.location.pathname);
     setPayload(null);
     setMetrics(null);
     setQuery('');

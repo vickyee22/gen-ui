@@ -6,13 +6,33 @@
 import React, { useState } from 'react';
 import { MapPin, QrCode, ArrowLeftRight, Truck, Plane, Check, AlertCircle, Smartphone, Package } from 'lucide-react';
 import {
-  CUSTOMER, PLANS, SHOPS, NEW_LINE_OFFER, SWOP_DISCOUNT, DELIVERY_FEE, PROMPTS, money, priceMain, colorOf
+  CUSTOMER, PLANS, SHOPS, ACCOUNTS, NEW_LINE_OFFER, SWOP_DISCOUNT, DELIVERY_FEE, PROMPTS, money, priceMain, colorOf
 } from './data';
 import {
   Page, UserSays, AgentSays, Card, Option, Switch, Btn, Row, Aside, AsideProduct, SumRow,
   Features, Agree, PhoneArt, Tick
 } from './ui';
-import { DeviceConfigurator, PlanHead, PlanPrice, PaySummary, ConfirmedHead, Timeline, NextActions, orderNo } from './MainFlow';
+import { DeviceConfigurator, PlanHead, PlanPrice, PaySummary, ConfirmedHead, Timeline, NextActions, orderNo, slotProps } from './MainFlow';
+import { ChatComposer, Recomposed, Gen, CLabel, SlotDiff } from './agent';
+
+const SHOP_CODE = { A: 'TPN', B: 'BDK', C: 'PSR' };
+
+/** Confirm-first switch to a plan with a higher device price. */
+function planConfirm({ from, to, beforeToday, afterToday, beforeMonthly, afterMonthly, note, onConfirm }) {
+  return {
+    message: `${PLANS[to].name} lowers your monthly but the phone costs more upfront. Here is the trade-off first.`,
+    confirm: {
+      title: `Switch to ${PLANS[to].name}?`,
+      before: { today: beforeToday, monthly: beforeMonthly },
+      after: { today: afterToday, monthly: afterMonthly },
+      note,
+      confirmLabel: 'Switch plan',
+      cancelLabel: `Keep ${PLANS[from].name}`,
+      onConfirm,
+      confirmedText: 'Switched. Only the plan changed.'
+    }
+  };
+}
 
 /* ======================= A · Shop first ======================= */
 
@@ -47,9 +67,21 @@ function ShopMap({ selected }) {
   );
 }
 
-export function ShopAvail({ go, prompt, scenario, setScenario }) {
+export function ShopAvail({ go, prompt, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const shop = scenario.shop || 'A';
   const current = SHOPS.find((s) => s.id === shop);
+  const pickShop = (id) => () => {
+    if (shop === id) return `${current.short} is already selected.`;
+    const next = SHOPS.find((s) => s.id === id);
+    if (!next.ok) return `${next.short} is out until Thu. Tampines or Bedok can hand it to you today.`;
+    applyChange({ slot: 'shop', label: 'Shop', from: current.short, to: next.short, scenario: { shop: id } });
+    return `Switched to ${next.short} — ${next.stock.toLowerCase()}, ${next.distance} away.`;
+  };
+  const script = [
+    { match: /bedok/i, run: pickShop('B') },
+    { match: /pasir ris/i, run: pickShop('C') },
+    { match: /tampines/i, run: pickShop('A') }
+  ];
   return (
     <Page aside={<ShopMap selected={shop} />}>
       <UserSays>{prompt || PROMPTS.shop}</UserSays>
@@ -57,6 +89,7 @@ export function ShopAvail({ go, prompt, scenario, setScenario }) {
         Three shops near Tampines. Burgundy 256GB is on the shelf at two of them today. Pick one and I'll show only what that shop can hand you.
       </AgentSays>
 
+      <Recomposed {...slotProps('shop', changeFor, undoChange)} name='ShopAvailability sku="IP18PM-BUR-256" variant="list+map"' minHeight={260}>
       <Card title="Burgundy · 256GB near you">
         <div className="es-stack" style={{ gap: 10 }}>
           {SHOPS.map((s) => (
@@ -70,13 +103,16 @@ export function ShopAvail({ go, prompt, scenario, setScenario }) {
             </Option>
           ))}
         </div>
-        <p className="es-note">Live stock, refreshed when you open this page. <button type="button" className="es-link">Prefer delivery instead?</button></p>
+        <p className="es-note">Live stock, refreshed when you open this page. Stock counts and distances shown are illustrative. <button type="button" className="es-link">Prefer delivery instead?</button></p>
       </Card>
+      </Recomposed>
 
       <div className="es-row">
         <Btn onClick={() => go('shopFit')}><MapPin size={18} /> Collect at {current.short} — continue</Btn>
         <Btn ghost>Book a set-up appointment</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['Bedok is closer to work — use that']} />
     </Page>
   );
 }
@@ -98,8 +134,30 @@ function shopName(scenario) {
   return SHOPS.find((s) => s.id === (scenario.shop || 'A'));
 }
 
-export function ShopFit({ order, setOrder, go, scenario, setScenario }) {
+export function ShopFit({ order, setOrder, go, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const shop = shopName(scenario);
+  const script = [
+    {
+      match: /too (much|expensive)|cheaper|lower monthly|enhanced m/i,
+      run: () => {
+        if (order.plan === 'M') return 'You are already on Enhanced M.';
+        return planConfirm({
+          from: order.plan,
+          to: 'M',
+          beforeToday: PLANS[order.plan].device - NEW_LINE_OFFER,
+          afterToday: PLANS.M.device - NEW_LINE_OFFER,
+          beforeMonthly: PLANS[order.plan].monthly,
+          afterMonthly: PLANS.M.monthly,
+          note: '$270 more upfront, $30 less a month — $450 less over 24 months.',
+          onConfirm: () => applyChange({ slot: 'plan', label: 'Plan', from: PLANS[order.plan].name, to: PLANS.M.name, order: { plan: 'M' } })
+        });
+      }
+    },
+    {
+      match: /silver/i,
+      run: () => `Silver isn't on the ${shop.short} shelf — Bedok has 2. Say "use Bedok" on the previous step, or pick another colour here.`
+    }
+  ];
   const defer = scenario.defer ?? true;
   const plan = PLANS[order.plan];
   const c = colorOf(order.color);
@@ -122,8 +180,11 @@ export function ShopFit({ order, setOrder, go, scenario, setScenario }) {
         This is what {shop.short} can hand you today. Anything greyed out isn't on their shelf — I'll tell you where it is instead.
       </AgentSays>
 
-      <DeviceConfigurator order={order} setOrder={setOrder} colors={SHOP_COLORS} storages={SHOP_STORAGES} />
+      <Gen name={`DeviceConfigurator mode="stock" shop="${SHOP_CODE[shop.id]}"`}>
+        <DeviceConfigurator order={order} setOrder={setOrder} colors={SHOP_COLORS} storages={SHOP_STORAGES} />
+      </Gen>
 
+      <Recomposed {...slotProps('plan', changeFor, undoChange)} name='PlanFitCompare variant="compact"' minHeight={150}>
       <Card title="Plan">
         <p className="es-note">You compared Priority L twice this week, so it's first. The shop can walk you through the rest.</p>
         <div className="es-grid-2">
@@ -141,7 +202,9 @@ export function ShopFit({ order, setOrder, go, scenario, setScenario }) {
           ))}
         </div>
       </Card>
+      </Recomposed>
 
+      <Gen name="OpenSlotsHandoff">
       <Card title="Number and add-ons">
         <div className="es-grid-2">
           <Option compact selected={defer} onClick={() => setScenario({ defer: true })}>
@@ -154,23 +217,54 @@ export function ShopFit({ order, setOrder, go, scenario, setScenario }) {
           </Option>
         </div>
         {!defer && <p className="es-callout is-info">I'll add the same number and add-on steps from the online flow before you reserve.</p>}
+        {defer && <p className="es-note">The $150 MobileSwop Plus discount is decided with you in store.</p>}
       </Card>
+      </Gen>
 
       <div className="es-row">
         <Btn onClick={() => go('shopReserve')}>Reserve at {shop.short}</Btn>
         <Btn ghost onClick={() => go('shopAvail', null, { instant: true })}>Change shop</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['Priority L is too much for me']} />
     </Page>
   );
 }
 
-export function ShopReserve({ order, go, scenario, setScenario, onRestart }) {
+export function ShopReserve({ order, go, scenario, setScenario, onRestart, applyChange, changeFor, undoChange }) {
   const shop = shopName(scenario);
   const now = scenario.pay === 'now';
   const confirmed = !!scenario.reserved;
   const plan = PLANS[order.plan];
   const c = colorOf(order.color);
   const due = plan.device - NEW_LINE_OFFER;
+  const script = [
+    {
+      match: /pay (now|online)|pay it now/i,
+      run: () => {
+        if (now) return `You're already paying ${money(due)} now.`;
+        return {
+          message: 'Paying now skips the counter queue. It moves the payment to today.',
+          confirm: {
+            title: 'Pay now instead?',
+            before: { today: 0 },
+            after: { today: due },
+            confirmLabel: `Pay ${money(due)} now`,
+            cancelLabel: 'Pay in store',
+            onConfirm: () => applyChange({ slot: 'payment', label: 'Payment', from: 'Pay in store', to: 'Pay now', scenario: { pay: 'now' } })
+          }
+        };
+      }
+    },
+    {
+      match: /pay (in store|later|at the (shop|counter))/i,
+      run: () => {
+        if (!now) return "You're already paying in store — $0 now.";
+        applyChange({ slot: 'payment', label: 'Payment', from: 'Pay now', to: 'Pay in store', scenario: { pay: 'store' } });
+        return 'Switched to pay in store — $0 now. The hold is free.';
+      }
+    }
+  ];
   return (
     <Page
       aside={
@@ -199,6 +293,7 @@ export function ShopReserve({ order, go, scenario, setScenario, onRestart }) {
         </p>
       )}
 
+      <Gen name='ReservationCard hold="Thu 29 Oct 9pm"'>
       <Card title="Collection">
         <div className="es-row" style={{ alignItems: 'stretch', gap: 20 }}>
           <div className="es-grid-2" style={{ flex: '1 1 300px', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
@@ -220,8 +315,10 @@ export function ShopReserve({ order, go, scenario, setScenario, onRestart }) {
           </div>
         </div>
       </Card>
+      </Gen>
 
       {!confirmed && (
+        <Recomposed {...slotProps('payment', changeFor, undoChange)} name="PaymentTiming" minHeight={120}>
         <Card title="How do you want to pay?">
           <div className="es-grid-2">
             <Option compact selected={now} onClick={() => setScenario({ pay: 'now' })}>
@@ -234,14 +331,17 @@ export function ShopReserve({ order, go, scenario, setScenario, onRestart }) {
             </Option>
           </div>
         </Card>
+        </Recomposed>
       )}
 
+      <Gen name="OpenSlotsHandoff">
       <Card soft title="Still open — we'll finish these with you in store">
         <div className="es-row" style={{ gap: 8 }}>
-          {['New number · eSIM', 'MobileSwop Plus · up to $150 off', 'Free trials'].map((t) => <span key={t} className="es-tag">{t}</span>)}
+          {['New number · eSIM', 'MobileSwop Plus · $150 off, decided in store', 'Free trials'].map((t) => <span key={t} className="es-tag">{t}</span>)}
         </div>
-        <p className="es-note">Staff see this same order on the retail app — no starting over at the counter.</p>
+        <p className="es-note">Staff see the same order in the retail app — no starting over at the counter.</p>
       </Card>
+      </Gen>
 
       <div className="es-row">
         {confirmed ? (
@@ -253,6 +353,8 @@ export function ShopReserve({ order, go, scenario, setScenario, onRestart }) {
           </>
         )}
       </div>
+
+      {!confirmed && <ChatComposer script={script} suggestions={[now ? 'Pay in store instead' : 'Pay now online']} />}
     </Page>
   );
 }
@@ -280,8 +382,28 @@ function bState(scenario) {
   };
 }
 
-export function TwoLines({ go, prompt, scenario, setScenario }) {
+export function TwoLines({ go, prompt, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const { colour, controls } = bState(scenario);
+  const script = [
+    {
+      match: /(no|remove|drop|turn off).{0,20}(purchase )?cap/i,
+      run: () => {
+        if (!controls.cap) return 'The purchase cap is already off.';
+        applyChange({ slot: 'controls', label: 'Parental controls', from: 'All 4 on', to: 'Purchase cap off', scenario: { controls: { ...controls, cap: false } } });
+        return 'Turned off the purchase cap. The filter, call barring and data alert stay on.';
+      }
+    },
+    {
+      match: /burgundy|graphite/i,
+      run: (t) => {
+        const id = /burgundy/i.test(t) ? 'burgundy' : 'graphite';
+        if (colour === id) return `It's already ${id}.`;
+        const name = (c) => B_COLOURS.find((x) => x.id === c).name;
+        applyChange({ slot: 'colour', label: 'Colour', from: name(colour), to: name(id), scenario: { colour: id } });
+        return `Switched Line 1 to ${name(id)}. Same price.`;
+      }
+    }
+  ];
   const cur = B_COLOURS.find((c) => c.id === colour);
   const onCount = CONTROLS.filter((k) => controls[k.key]).length;
   return (
@@ -312,12 +434,15 @@ export function TwoLines({ go, prompt, scenario, setScenario }) {
       <AgentSays>
         I found two goals, so I've built one card per line. One idea: once your data is on the new iPhone, hand your current phone down to your child. Then the new line only needs a SIM, not a second phone.
       </AgentSays>
-      <div className="es-row" style={{ gap: 8 }}>
-        <span className="es-tag is-changing">Goal 1 · Upgrade {CUSTOMER.phone}</span>
-        <span className="es-tag is-changing">Goal 2 · New line for your child</span>
-      </div>
+      <Gen name='IntentSplitter goals={["upgrade", "new-child"]}'>
+        <div className="es-row" style={{ gap: 8 }}>
+          <span className="es-tag is-changing">Goal 1 · Upgrade {CUSTOMER.phone}</span>
+          <span className="es-tag is-changing">Goal 2 · New line for your child</span>
+        </div>
+      </Gen>
 
       <div className="es-grid-2">
+        <Recomposed {...slotProps('colour', changeFor, undoChange)} name='LineCard role="upgrade"' minHeight={260}>
         <Card title={`Line 1 · ${CUSTOMER.phone}`} right={<span className="es-pill is-brand-soft">Upgrade</span>}>
           <div className="es-row" style={{ gap: 16, flexWrap: 'nowrap' }}>
             <PhoneArt hex={cur.hex} width={56} />
@@ -344,7 +469,9 @@ export function TwoLines({ go, prompt, scenario, setScenario }) {
           <span className="es-note">Unlimited local data + Malaysia roaming</span>
           <span className="es-pill is-ok" style={{ alignSelf: 'flex-start' }}><Check size={14} />Re-contract eligible</span>
         </Card>
+        </Recomposed>
 
+        <Gen name='LineCard role="new-child"'>
         <Card title="Line 2 · For your child" right={<span className="es-pill is-brand-soft">New line</span>}>
           <div className="es-row" style={{ gap: 16, flexWrap: 'nowrap' }}>
             <span style={{ width: 56, height: 56, borderRadius: 14, background: '#F6F6F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
@@ -362,8 +489,10 @@ export function TwoLines({ go, prompt, scenario, setScenario }) {
             <Row label="SIM" value="eSIM · free" />
           </div>
         </Card>
+        </Gen>
       </div>
 
+      <Recomposed {...slotProps('controls', changeFor, undoChange)} name='ParentalControls age="12"' minHeight={280}>
       <Card title="Parental controls on Line 2">
         <p className="es-note">Set for a 12-year-old. You can change any of these later from your account.</p>
         <div>
@@ -383,11 +512,14 @@ export function TwoLines({ go, prompt, scenario, setScenario }) {
           ))}
         </div>
       </Card>
+      </Recomposed>
 
       <div className="es-row">
         <Btn onClick={() => go('twoLineCart')}>Review both lines</Btn>
         <button type="button" className="es-link" style={{ fontSize: 14 }}>Buy a separate phone for Line 2 instead</button>
       </div>
+
+      <ChatComposer script={script} suggestions={['No purchase cap — she buys her own games', 'Make mine burgundy']} />
     </Page>
   );
 }
@@ -399,8 +531,23 @@ const HANDDOWN = [
   { title: "Install your child's eSIM", desc: 'Scan the QR code we email for 9638 8347' }
 ];
 
-export function TwoLineCart({ go, scenario, setScenario }) {
+export function TwoLineCart({ go, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const { colour } = bState(scenario);
+  const account = ACCOUNTS.find((a) => a.id === (scenario.bAccount || 'main'));
+  const script = [
+    {
+      match: /second account|0912/i,
+      run: () => {
+        if (account.id === 'second') return 'Both lines are already on the account ending 0912.';
+        applyChange({ slot: 'billing', label: 'Billing', from: ACCOUNTS[0].title, to: ACCOUNTS[1].title, scenario: { bAccount: 'second' } });
+        return 'Both lines now bill to your second account, ending 0912. Nothing else changed.';
+      }
+    },
+    {
+      match: /remind|checklist/i,
+      run: () => "I'll send the hand-down checklist again on delivery day."
+    }
+  ];
   const done = scenario.handDone || [false, false, false, false];
   const [agreed, setAgreed] = useState(true);
   const today = B_DEVICE + DELIVERY_FEE;
@@ -412,7 +559,7 @@ export function TwoLineCart({ go, scenario, setScenario }) {
           { t: 'Fri 30 Oct, 9am–12pm · iPhone 18 Pro arrives', d: `One delivery to ${CUSTOMER.address}.` },
           { t: 'Same day · hand your iPhone down', d: "We'll send the 4-step checklist on delivery day." },
           { t: "Child's eSIM · 9638 8347", d: 'Scan the QR code we email. Parental controls are on from the first minute.' },
-          { t: `First bill · ${money(B_LINE1 + B_LINE2)}/mth`, d: 'Both lines on Main account · ending 4471.' }
+          { t: `First bill · ${money(B_LINE1 + B_LINE2)}/mth`, d: `Both lines on ${account.title}.` }
         ],
         monthly: [
           ['Line 1 · Priority L', B_LINE1],
@@ -448,6 +595,7 @@ export function TwoLineCart({ go, scenario, setScenario }) {
         Both lines are grouped here: one cart, one bill, one delivery. I've added a short checklist for handing your current iPhone down safely.
       </AgentSays>
 
+      <Gen name="GroupedCart lines={2}">
       <Card title="Your cart · 2 lines">
         <div className="es-option is-row is-compact" style={{ cursor: 'default' }}>
           <PhoneArt hex={B_COLOURS.find((c) => c.id === colour).hex} width={30} detailed={false} />
@@ -468,7 +616,9 @@ export function TwoLineCart({ go, scenario, setScenario }) {
           <span style={{ textAlign: 'right' }}><strong>$0.00 today</strong><br /><span className="es-muted">${B_LINE2}/mth</span></span>
         </div>
       </Card>
+      </Gen>
 
+      <Gen name="HandDownChecklist">
       <Card title="Hand your iPhone down" right={<span className="es-pill is-grey">{done.filter(Boolean).length} of 4 done</span>}>
         <p className="es-note">Do these after the iPhone 18 Pro arrives. I'll remind you on delivery day.</p>
         <div>
@@ -495,13 +645,16 @@ export function TwoLineCart({ go, scenario, setScenario }) {
           ))}
         </div>
       </Card>
+      </Gen>
 
       <div className="es-grid-2">
+        <Recomposed {...slotProps('billing', changeFor, undoChange)} name='AccountChooser preselect="4471"'>
         <Card>
           <span className="es-note">Billing</span>
-          <strong>Main account · ending 4471</strong>
+          <strong>{account.title}</strong>
           <span className="es-note">Both lines on one bill · <button type="button" className="es-link">Change</button></span>
         </Card>
+        </Recomposed>
         <Card>
           <span className="es-note">Delivery · $10</span>
           <strong>Fri 30 Oct · 9am–12pm</strong>
@@ -512,6 +665,8 @@ export function TwoLineCart({ go, scenario, setScenario }) {
       <div className="es-row">
         <Btn ghost onClick={() => go('twoLines', null, { instant: true })}>Back to lines</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['Put both lines on my second account']} />
     </Page>
   );
 }
@@ -520,9 +675,36 @@ export function TwoLineCart({ go, scenario, setScenario }) {
 
 const PORT_MONTHLY = { L: 115.2, M: 88.2 };
 
-export function PortIn({ order, setOrder, go, prompt, scenario, setScenario }) {
+export function PortIn({ order, setOrder, go, prompt, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const plan = PLANS[order.plan];
   const telco = scenario.telco || 'M1';
+  const script = [
+    {
+      match: /enhanced m|cheaper|lower monthly|too (much|expensive)/i,
+      run: () => {
+        if (order.plan === 'M') return 'You are already on Enhanced M — $88.20 a month after the port-in discount.';
+        return planConfirm({
+          from: order.plan,
+          to: 'M',
+          beforeToday: plan.device - NEW_LINE_OFFER,
+          afterToday: PLANS.M.device - NEW_LINE_OFFER,
+          beforeMonthly: PORT_MONTHLY[order.plan],
+          afterMonthly: PORT_MONTHLY.M,
+          note: 'Enhanced M has 10GB Asia roaming, enough for a week in Tokyo. $270 more upfront, $27 less a month after the 10% discount.',
+          onConfirm: () => applyChange({ slot: 'plan', label: 'Plan', from: plan.name, to: PLANS.M.name, order: { plan: 'M' } })
+        });
+      }
+    },
+    {
+      match: /starhub|simba|circles|\bm1\b/i,
+      run: (t) => {
+        const next = ['StarHub', 'SIMBA', 'Circles.Life', 'M1'].find((x) => new RegExp(x.split('.')[0], 'i').test(t));
+        if (next === telco) return `Got it — ${telco} is already set.`;
+        applyChange({ slot: 'telco', label: 'Current telco', from: telco, to: next, scenario: { telco: next } });
+        return `Updated — we'll move your number from ${next}. The offer still applies.`;
+      }
+    }
+  ];
   return (
     <Page
       aside={
@@ -544,6 +726,7 @@ export function PortIn({ order, setOrder, go, prompt, scenario, setScenario }) {
         Welcome, {CUSTOMER.firstName}. Since you're bringing your number, I've turned the number step into a <strong>port-in form</strong> — and switching unlocks the <strong>port-in offer</strong>. I picked the two plans that cover your Tokyo trip.
       </AgentSays>
 
+      <Recomposed {...slotProps('telco', changeFor, undoChange)} name='PortInForm' minHeight={150}>
       <Card title="Bring your number" right={<span className="es-pill is-ok">eSIM · free</span>}>
         <div className="es-row" style={{ alignItems: 'flex-end', gap: 16 }}>
           <div className="es-field">
@@ -561,14 +744,18 @@ export function PortIn({ order, setOrder, go, prompt, scenario, setScenario }) {
           <Tick size={16} color="#1E6B37" /> Account holder: you — verified with Singpass
         </span>
       </Card>
+      </Recomposed>
 
+      <Gen name='OfferUnlocked trigger="port-in"'>
       <Card accent>
         <div className="es-card-head">
           <strong style={{ fontSize: 17, display: 'flex', gap: 8, alignItems: 'center' }}><Package size={20} color="#3A3FD9" /> Port-in offer unlocked</strong>
         </div>
         <p style={{ fontSize: 15 }}>Extra <strong>$381 off your new phone</strong> + <strong>10% off your monthly phone plan</strong>, because you're switching to Singtel.</p>
       </Card>
+      </Gen>
 
+      <Recomposed {...slotProps('plan', changeFor, undoChange)} name='PlanFitCompare intent="travel:JP" variant="full"' minHeight={320}>
       <div className="es-stack">
         <h2 className="es-h2">Your plan</h2>
         <div className="es-grid-2">
@@ -597,22 +784,39 @@ export function PortIn({ order, setOrder, go, prompt, scenario, setScenario }) {
           <Plane size={16} style={{ flex: 'none', marginTop: 2 }} /> Both cover a one-week Tokyo trip. Priority L has more headroom if you travel further afield later.
         </p>
       </div>
+      </Recomposed>
 
       <div className="es-row">
         <Btn onClick={() => go('portTiming')}>Check it's ready before my flight</Btn>
         <Btn ghost>Show all plans</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['Is there a cheaper plan that still covers Japan?', "I'm actually on StarHub"]} />
     </Page>
   );
 }
 
-export function PortTiming({ order, go, scenario, setScenario }) {
+export function PortTiming({ order, go, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const plan = PLANS[order.plan];
   const roam = scenario.roam ?? true;
   const alert = scenario.alert ?? true;
   const [agreed, setAgreed] = useState(false);
   const telco = scenario.telco || 'M1';
   const today = plan.device - NEW_LINE_OFFER + DELIVERY_FEE;
+  const script = [
+    {
+      match: /slip|delay|late|what if/i,
+      run: () => "If the switch slips past Tue 3 Nov, we'll text you — and any Singtel Shop can sort it out before you fly."
+    },
+    {
+      match: /(no|turn off|don'?t need).{0,12}roaming/i,
+      run: () => {
+        if (!roam) return 'Roaming is already off.';
+        applyChange({ slot: 'roaming', label: 'Roaming', from: 'On before you fly', to: 'Off', scenario: { roam: false } });
+        return "Roaming is off. You can switch it on in the app before you fly — it won't change your price.";
+      }
+    }
+  ];
   const steps = [
     { date: 'Tue 27 Oct · today', title: 'Order placed', state: 'done' },
     { date: 'Thu 29 Oct', title: 'Phone + eSIM delivered', Icon: Truck },
@@ -662,6 +866,7 @@ export function PortTiming({ order, go, scenario, setScenario }) {
         I checked the dates against your flight. If you order today, your number will be working on Singtel with <strong>6 days to spare</strong> before you fly to Tokyo.
       </AgentSays>
 
+      <Gen name='DeadlineFeasibility deadline="Thu 5 Nov"'>
       <Card title="Ready before you fly" right={<span className="es-pill is-ok is-lg"><Check size={16} />Ready with 6 days to spare</span>}>
         <ol className="es-htl">
           {steps.map((s, i) => (
@@ -680,8 +885,11 @@ export function PortTiming({ order, go, scenario, setScenario }) {
             </li>
           ))}
         </ol>
+        <p className="es-note">Switch dates are illustrative.</p>
       </Card>
+      </Gen>
 
+      <Recomposed {...slotProps('roaming', changeFor, undoChange)} name='RoamingReady destination="JP"' minHeight={160}>
       <Card title="Roaming for Japan">
         <div>
           <div className="es-setting">
@@ -701,15 +909,18 @@ export function PortTiming({ order, go, scenario, setScenario }) {
         </div>
         <p className="es-note">Your old telco's service ends when the switch completes — no need to cancel it yourself.</p>
       </Card>
+      </Recomposed>
 
       <p className="es-callout" style={{ display: 'flex', gap: 10 }}>
         <AlertCircle size={18} style={{ flex: 'none', marginTop: 1 }} />
-        <span><strong>If the switch slips</strong> past Tue 3 Nov, we'll text you and you can pick up help in any Singtel Shop.</span>
+        <span>If the switch slips past Tue 3 Nov, we'll text you.</span>
       </p>
 
       <div className="es-row">
         <Btn ghost onClick={() => go('portIn', null, { instant: true })}>Back to number and plan</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['What if the switch is late?']} />
     </Page>
   );
 }
@@ -733,6 +944,15 @@ export function Pivot({ order, setOrder, go, prompt, scenario, setScenario }) {
   if (order.swop) kept.push('MobileSwop Plus');
   if (order.trials.prime) kept.push('Amazon Prime trial');
   kept.push('Singpass details', 'Billing account ending 4471');
+  const pickScript = (id, msg) => () => {
+    setScenario({ pivotOpt: id });
+    return msg;
+  };
+  const script = [
+    { match: /graphite|tonight/i, run: pickScript('a', 'Selected Graphite, collect tonight at Tampines. It swaps your colour.') },
+    { match: /burgundy|tomorrow|keep (my )?colou?r/i, run: pickScript('b', 'Selected Burgundy, collect tomorrow 11am at Tampines. Keeps your colour.') },
+    { match: /keep (fri|friday|delivery)|deliver/i, run: pickScript('c', 'Selected: keep Friday delivery.') }
+  ];
   const apply = () => {
     if (cur.fulfil === 'door') {
       setOrder({ fulfil: 'door', pivot: null });
@@ -763,19 +983,9 @@ export function Pivot({ order, setOrder, go, prompt, scenario, setScenario }) {
         Sure — only the delivery choice changes; everything else stays as you set it. Burgundy isn't on any shop shelf tonight, so here are three ways to play it.
       </AgentSays>
 
-      <Card title="What this touches">
-        <div className="es-row" style={{ gap: '10px 16px' }}>
-          <span className="es-eyebrow" style={{ color: '#3A3FD9', minWidth: 80 }}>Changing</span>
-          <span className="es-tag is-changing"><ArrowLeftRight size={14} />How you get it</span>
-        </div>
-        <div className="es-row es-divider-top" style={{ gap: '10px 16px', alignItems: 'flex-start' }}>
-          <span className="es-eyebrow" style={{ minWidth: 80, paddingTop: 6 }}>Kept</span>
-          <div className="es-row" style={{ flex: '1 1 400px', gap: 8 }}>
-            {kept.map((k) => <span key={k} className="es-tag"><Check size={12} color="#1E6B37" strokeWidth={2.6} />{k}</span>)}
-          </div>
-        </div>
-      </Card>
+      <SlotDiff changing={['How you get it']} kept={kept} />
 
+      <Gen name='FulfilmentRecompute reason="sooner"'>
       <Card title="Get it sooner">
         <div className="es-stack" style={{ gap: 10 }}>
           {PIVOT_OPTIONS.map((o) => (
@@ -793,11 +1003,14 @@ export function Pivot({ order, setOrder, go, prompt, scenario, setScenario }) {
           ))}
         </div>
       </Card>
+      </Gen>
 
       <div className="es-row">
         <Btn onClick={apply}>Use this</Btn>
         <Btn ghost onClick={() => go('checkout', null, { instant: true })}>Never mind, keep Friday</Btn>
       </div>
+
+      <ChatComposer script={script} suggestions={['Graphite tonight is fine']} />
     </Page>
   );
 }
@@ -832,6 +1045,7 @@ export function PivotResolved({ order, go }) {
       </AgentSays>
 
       <h2 className="es-h2">Your checkout</h2>
+      <CLabel name="ChangeHighlights" />
       <Card accent>
         <div className="es-card-head">
           <span className="es-row" style={{ gap: 10 }}>
@@ -861,6 +1075,20 @@ export function PivotResolved({ order, go }) {
           </div>
         ))}
       </Card>
+
+      <ChatComposer
+        script={[
+          {
+            match: /undo|keep (fri|friday)|deliver|put it back/i,
+            run: () => {
+              go('checkout', { fulfil: 'door', pivot: null, color: 'burgundy' });
+              return 'Putting Friday delivery back.';
+            }
+          },
+          { match: /tonight|graphite|other option/i, run: () => { go('pivot', null, { instant: true }); return 'Here are the three options again.'; } }
+        ]}
+        suggestions={['Actually, keep Friday delivery']}
+      />
     </Page>
   );
 }
@@ -891,13 +1119,24 @@ export function TradeIn({ go, prompt, scenario, setScenario }) {
   const t = tState(scenario);
   const set = (patch) => setScenario({ trade: { ...t, ...patch } });
   const { est, note } = tradeEstimate(t);
+  const answer = (patch, label) => () => {
+    const next = tradeEstimate({ ...t, ...patch });
+    set(patch);
+    return `Noted — ${label}. Your estimate is now ${money(next.est)}.`;
+  };
+  const script = [
+    { match: /crack/i, run: answer({ screen: 'bad' }, 'cracked screen, −$150') },
+    { match: /battery/i, run: answer({ battery: 'bad' }, 'battery below 80%, −$50') },
+    { match: /(doesn'?t|does not|won'?t) (work|turn on)|broken|dead/i, run: answer({ works: 'bad' }, "phones that don't work get a flat $80") },
+    { match: /512|1 ?tb|128/i, run: (x) => answer({ storage: /512/.test(x) ? '512GB' : /128/.test(x) ? '128GB' : '1TB' }, 'storage updated')() }
+  ];
   return (
     <Page
       aside={
         <Aside title="Your bundle">
           <AsideProduct hex={colorOf('burgundy').hex} title="iPhone 18 Pro Max" sub="Burgundy · 256GB · Priority L" />
           <div className="es-sum">
-            <SumRow label="Account" value={`${CUSTOMER.fullName} · •••• 8347`} />
+            <SumRow label="Account" value={`${CUSTOMER.fullName} · ending 4471`} />
             <SumRow label="Trading in" value={`iPhone 15 Pro · ${t.storage}`} />
             <SumRow label="Trade-in estimate" value={<span className="es-neg">−{money(est)}</span>} />
             <SumRow label="Voucher WELCOME50" value={<span className="es-neg">−{money(VOUCHER)}</span>} />
@@ -911,6 +1150,7 @@ export function TradeIn({ go, prompt, scenario, setScenario }) {
         Three quick questions about your iPhone 15 Pro give you a trade-in estimate. I'm checking your voucher now too, so <strong>the price you see is the price you pay</strong> — no surprises at checkout.
       </AgentSays>
 
+      <Gen name='TradeInEstimator model="iPhone 15 Pro"'>
       <Card title="Trade in your phone">
         <div className="es-row" style={{ gap: 16 }}>
           <PhoneArt hex="#8A8F98" width={40} />
@@ -943,8 +1183,11 @@ export function TradeIn({ go, prompt, scenario, setScenario }) {
           </div>
           <span style={{ fontSize: 30, fontWeight: 900 }}>{money(est)}</span>
         </div>
+        <p className="es-note">Trade-in values are illustrative.</p>
       </Card>
+      </Gen>
 
+      <Gen name='VoucherApply code="WELCOME50"'>
       <Card title="Voucher">
         <div className="es-row" style={{ alignItems: 'flex-end' }}>
           <div className="es-field">
@@ -954,16 +1197,19 @@ export function TradeIn({ go, prompt, scenario, setScenario }) {
           <span className="es-pill is-ok is-lg" style={{ marginBottom: 12 }}><Check size={16} />Applied · $50 off your phone</span>
         </div>
       </Card>
+      </Gen>
 
       <div className="es-row">
         <Btn onClick={() => go('tradePrice')}>See my price</Btn>
         <span className="es-note">You can change any answer later — the estimate updates as you go.</span>
       </div>
+
+      <ChatComposer script={script} suggestions={['The screen has a small crack']} />
     </Page>
   );
 }
 
-export function TradePrice({ go, scenario, setScenario }) {
+export function TradePrice({ go, scenario, setScenario, applyChange, changeFor, undoChange }) {
   const t = tState(scenario);
   const { est } = tradeEstimate(t);
   const plan = PLANS.L;
@@ -976,6 +1222,35 @@ export function TradePrice({ go, scenario, setScenario }) {
   const credit = isCover ? Math.max(0, surplus) : est;
   const monthly = plan.monthly + 13.9;
   const checks = scenario.tiChecks || {};
+  const script = [
+    {
+      match: /full credit|pay (by card|\$?179)|keep the (whole|full)/i,
+      run: () => {
+        if (!covers) return 'Your trade-in already goes on your bills in full.';
+        if (!isCover) return `You're already paying ${money(subtotal)} today with ${money(est)} credit.`;
+        return {
+          message: 'You can pay the subtotal by card and take the whole trade-in as bill credit. That moves money to today.',
+          confirm: {
+            title: `Pay ${money(subtotal)} today instead?`,
+            before: { today: 0 },
+            after: { today: subtotal },
+            note: `Bill credit goes from ${money(surplus)} to ${money(est)}.`,
+            confirmLabel: `Pay ${money(subtotal)} today`,
+            cancelLabel: 'Keep $0 today',
+            onConfirm: () => applyChange({ slot: 'payout', label: 'Trade-in payout', from: `$0 today + ${money(surplus)} credit`, to: `${money(subtotal)} today + ${money(est)} credit`, scenario: { payout: 'pay' } })
+          }
+        };
+      }
+    },
+    {
+      match: /\$?0 today|nothing today|cover/i,
+      run: () => {
+        if (isCover) return 'You already pay $0 today.';
+        applyChange({ slot: 'payout', label: 'Trade-in payout', from: `${money(subtotal)} today`, to: '$0 today', scenario: { payout: 'cover' } });
+        return `Switched — $0 today and ${money(surplus)} credited to your bills.`;
+      }
+    }
+  ];
   const pay = () =>
     go('confirmed', {
       confirmation: {
@@ -1014,6 +1289,7 @@ export function TradePrice({ go, scenario, setScenario }) {
           : <>Here's the whole sum. Your trade-in brings today's payment down to <strong>{money(subtotal - est)}</strong>.</>}
       </AgentSays>
 
+      <Gen name="PriceExplainer">
       <Card title="Your price, line by line">
         <div className="es-ledger">
           <Row label="iPhone 18 Pro Max with Priority L" value={money(plan.device)} />
@@ -1025,8 +1301,10 @@ export function TradePrice({ go, scenario, setScenario }) {
         </div>
         {covers && <p className="es-callout is-ok">Your trade-in covers {money(surplus)} more than today's price</p>}
       </Card>
+      </Gen>
 
       {covers && (
+        <Recomposed {...slotProps('payout', changeFor, undoChange)} name="TradeInPayout" minHeight={160}>
         <div className="es-grid-2">
           <Option selected={isCover} onClick={() => setScenario({ payout: 'cover' })}>
             <span className="es-pill is-brand" style={{ alignSelf: 'flex-start' }}>Recommended</span>
@@ -1039,8 +1317,10 @@ export function TradePrice({ go, scenario, setScenario }) {
             <span className="es-option-sub">Pay the subtotal by card; the whole trade-in comes off your bills.</span>
           </Option>
         </div>
+        </Recomposed>
       )}
 
+      <Gen name='TradeInLogistics pickup="Fri 30 Oct"'>
       <Card title="Handing over your iPhone 15 Pro">
         <p style={{ fontSize: 15, display: 'flex', gap: 10 }}>
           <Truck size={20} style={{ flex: 'none' }} />
@@ -1058,6 +1338,9 @@ export function TradePrice({ go, scenario, setScenario }) {
           ))}
         </div>
       </Card>
+      </Gen>
+
+      <ChatComposer script={script} suggestions={['Keep the full credit, I will pay $179']} />
     </Page>
   );
 }
@@ -1074,6 +1357,7 @@ export function Confirmed({ order, onRestart }) {
       aside={
         <Aside title="Your monthly, explained" soft>
           <div className="es-ledger" style={{ fontSize: 14 }}>
+            <CLabel name="BillExplainer" />
             {conf.monthly.map(([k, v]) => <Row key={k} label={k} value={money(v)} />)}
             <Row label="Every month" value={money(total)} total />
           </div>
@@ -1084,10 +1368,16 @@ export function Confirmed({ order, onRestart }) {
         title={`You're all set, ${CUSTOMER.firstName}`}
         sub={<>Order <strong>SG-{orderNo(conf)}</strong> · {money(conf.paid)} paid. Here's exactly what happens next.</>}
       />
-      <Card title="What happens next">
-        <Timeline steps={conf.steps} />
-      </Card>
+      <Gen name="PostOrderTimeline">
+        <Card title="What happens next">
+          <Timeline steps={conf.steps} />
+        </Card>
+      </Gen>
       <NextActions items={conf.next} onRestart={onRestart} />
+      <ChatComposer
+        placeholder="Anything else?"
+        script={[{ match: /track/i, run: () => "You'll get an SMS with live tracking on delivery day." }]}
+      />
     </Page>
   );
 }

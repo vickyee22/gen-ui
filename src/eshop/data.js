@@ -3,9 +3,10 @@
  * All prices are illustrative and mirror the "EShop Gen UI Buyflow" design boards.
  */
 
-// The "Tailoring this visit" context-signals card on the Intent screen is
-// switched off for the production-style demo. Flip to true to bring it back.
-export const SHOW_CONTEXT_SIGNALS = false;
+// The "Tailoring this visit" context-signals card is part of the architecture
+// view: it shows only while "Show component labels" is on. Set to false to
+// hide it in every view.
+export const SHOW_CONTEXT_SIGNALS = true;
 
 export const BRAND = 'Singtel';
 
@@ -19,6 +20,8 @@ export const CUSTOMER = {
 };
 
 export const FLOWS = {
+  s1: ['Intent', 'Shop', 'Fit', 'Extras', 'Reserve', 'Review'],
+  three: ['Goals', 'Overview'],
   main: ['Intent', 'Fit', 'Line', 'Extras', 'Checkout'],
   shop: ['Shop', 'Fit', 'Reserve'],
   lines: ['Goals', 'Lines', 'Checkout'],
@@ -37,8 +40,19 @@ export const STORAGES = ['256GB', '512GB', '1TB', '2TB'];
 
 export const PLANS = {
   L: { id: 'L', name: 'Priority L', monthly: 128, device: 760 },
-  M: { id: 'M', name: 'Enhanced M', monthly: 98, device: 1030 }
+  M: { id: 'M', name: 'Enhanced M', monthly: 98, device: 1030 },
+  S: { id: 'S', name: 'Enhanced S', monthly: 78, device: 1210 }
 };
+
+export const ROAMING = {
+  L: 'Unlimited Malaysia + 12GB worldwide',
+  M: '50GB Malaysia, 10GB Asia, 1GB worldwide',
+  S: '50GB Malaysia, 4GB Asia'
+};
+
+export const TODAY = 'Tue 27 Oct 2026';
+export const DELIVERY_USUAL = 15;
+export const SIM_ONLY = 20; // illustrative
 
 export const NEW_LINE_OFFER = 381;
 export const SWOP_DISCOUNT = 150;
@@ -96,6 +110,7 @@ export const DEFAULT_ORDER = {
   fulfil: 'door',
   slot: 'fri',
   pivot: null,
+  shop: null,
   confirmation: null
 };
 
@@ -162,3 +177,15 @@ export function routeIntent(text) {
 export function isPivotRequest(text) {
   return /today|tonight|sooner|faster|earlier|pick ?(it )?up|collect/.test(text.toLowerCase());
 }
+
+// Scenario picker (home). `entry` is the first screen; `draft` pre-fills Intent.
+export const SCENARIOS = [
+  { id: 's1', tag: 'Opener · two goals', title: 'Phone + collect at a shop, with chat changes', entry: 's1Intent', draft: "I want the iPhone 18 Pro Max in burgundy, and I'd like to pick it up at Tampines tomorrow.", featured: true },
+  { id: 's2', tag: 'Scenario 2', title: 'Device first, plan for KL trips', entry: 'intent', draft: PROMPTS.main },
+  { id: 'a', tag: 'Scenario A', title: 'Shop first — check stock, collect in store', entry: 'intent', draft: PROMPTS.shop },
+  { id: 'b', tag: 'Scenario B', title: 'Two goals, two lines — upgrade + child line', entry: 'intent', draft: PROMPTS.lines },
+  { id: 'c', tag: 'Scenario C', title: 'Switch telco, keep my number, fly next week', entry: 'intent', draft: PROMPTS.port },
+  { id: 'd', tag: 'Scenario D', title: 'Pivot at checkout — "can I get it today?"', entry: 'checkout', draft: PROMPTS.main },
+  { id: 'e', tag: 'Scenario E', title: 'Trade-in + voucher', entry: 'intent', draft: PROMPTS.trade },
+  { id: 'three', tag: 'Closing · three goals', title: 'Phone, child line and collect — one overview', entry: 'threeIntent', draft: "iPhone 18 Pro Max for me, a line for my 12-year-old with parental controls, and I'd like to pick it up at Tampines tomorrow." }
+];

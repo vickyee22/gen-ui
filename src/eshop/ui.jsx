@@ -35,7 +35,7 @@ export function PhoneArt({ hex = '#5B1E2A', width = 96, detailed = true }) {
   );
 }
 
-export function Header({ onHome }) {
+export function Header({ onHome, labels, onLabels, showLabelsToggle }) {
   return (
     <header className="es-header">
       <div className="es-wrap es-header-inner">
@@ -56,6 +56,12 @@ export function Header({ onHome }) {
           </nav>
         </div>
         <div className="es-header-right">
+          {showLabelsToggle && (
+            <label className="es-labels-toggle">
+              <Switch on={labels} onToggle={onLabels} label="Show component labels" />
+              <span>Component labels</span>
+            </label>
+          )}
           <button type="button" className="es-icon-btn" aria-label="Search"><Search size={18} /></button>
           <button type="button" className="es-icon-btn" aria-label="Cart"><ShoppingBag size={18} /></button>
           <span className="es-header-greeting">Hi, {CUSTOMER.firstName}</span>
