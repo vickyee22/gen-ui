@@ -13,6 +13,7 @@ import { DEFAULT_ORDER, FLOWS, FLOW_ENTRY, BRAND, routeIntent } from './data';
 import { Header, Progress, Composing } from './ui';
 import { LabelsContext } from './agent';
 import { Home } from './Home';
+import { DynamicFlow } from './dynamic/DynamicFlow';
 import { Intent, Fit, Line, Extras, Checkout, Done } from './MainFlow';
 import {
   ShopAvail, ShopFit, ShopReserve, TwoLines, TwoLineCart, PortIn, PortTiming,
@@ -25,6 +26,8 @@ import '../styles/eshop.css';
 
 const SCREENS = {
   home: { C: Home, path: '' },
+  // Live: every screen composed by the LLM orchestrator at runtime
+  live: { C: LiveFlow, path: '/live' },
   // Scenario 1 (opener)
   s1Intent: { C: S1Intent, path: '/s1/intent', flow: 's1', step: 0 },
   s1Shop: { C: S1Shop, path: '/s1/shop', flow: 's1', step: 1, composing: 'Checking live stock near Tampines' },
@@ -72,6 +75,10 @@ const initialOrder = (screen) => (/^(s1|three)/.test(screen) ? COLLECT_ORDER : D
 
 const COMPOSE_MS = 750;
 const DEMO = new URLSearchParams(window.location.search).get('demo') === '1';
+
+function LiveFlow({ draft, onRestart }) {
+  return <DynamicFlow key={draft} draft={draft} onHome={onRestart} />;
+}
 
 export default function EShopApp({ onExit }) {
   const [screen, setScreen] = useState(screenFromHash);
@@ -175,6 +182,12 @@ export default function EShopApp({ onExit }) {
     go('home', null, { instant: true });
   }, [go, reset]);
 
+  const live = useCallback((text) => {
+    reset();
+    setDraft(text || '');
+    go('live', null, { instant: true });
+  }, [go, reset]);
+
   const pick = useCallback((s) => {
     reset();
     setDraft(s.draft);
@@ -223,6 +236,7 @@ export default function EShopApp({ onExit }) {
                 onSubmit={handleIntent}
                 onRestart={restart}
                 onPick={pick}
+                onLive={live}
                 changes={changes}
                 applyChange={applyChange}
                 undoChange={undoChange}

@@ -134,7 +134,7 @@ export function matchScript(text, script = []) {
  * `script`: [{ match, run }] where run() returns a reply (see file header).
  * `suggestions`: demo phrases shown as chips.
  */
-export function ChatComposer({ script = [], suggestions = [], placeholder = 'Ask for a change…', onFallback }) {
+export function ChatComposer({ script = [], suggestions = [], placeholder = 'Ask for a change…', onFallback, onAsk }) {
   const [text, setText] = useState('');
   const [thread, setThread] = useState([]);
   const [typing, setTyping] = useState(false);
@@ -152,12 +152,19 @@ export function ChatComposer({ script = [], suggestions = [], placeholder = 'Ask
     setText('');
     setThread((t) => [...t, { who: 'user', text: v }]);
     setTyping(true);
-    timer.current = setTimeout(() => {
-      const hit = matchScript(v, script);
-      const reply = hit ? hit.run(v) : { message: FALLBACK, fallback: true };
-      const msg = typeof reply === 'string' ? { message: reply } : reply;
+    const post = (reply) => {
+      const msg = typeof reply === 'string' ? { message: reply } : reply || { message: FALLBACK, fallback: true };
       setTyping(false);
       setThread((t) => [...t, { who: 'agent', ...msg, id: Date.now() }]);
+    };
+    // onAsk (LLM-backed) takes precedence over the scripted matcher.
+    if (onAsk) {
+      Promise.resolve(onAsk(v)).then(post, () => post({ message: FALLBACK, fallback: true }));
+      return;
+    }
+    timer.current = setTimeout(() => {
+      const hit = matchScript(v, script);
+      post(hit ? hit.run(v) : { message: FALLBACK, fallback: true });
     }, 450);
   };
 
