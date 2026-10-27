@@ -9,12 +9,12 @@ import React, { useState } from 'react';
 import { User, Eye, CreditCard, Check, Bell, ShieldCheck, AlertCircle } from 'lucide-react';
 import {
   COLORS, STORAGES, PLANS, ROAMING, TRIALS, ACCOUNTS, SLOTS, NUMBERS, PODS, CUSTOMER,
-  SWOP_MONTHLY, SWOP_DISCOUNT, money, colorOf
+  SWOP_MONTHLY, SWOP_DISCOUNT, money
 } from '../../data';
 import { S1_SIGNALS } from '../../s1data';
 import { Card, Option, Switch, Btn, Row, Features, PhoneArt, Tick } from '../../ui';
 import { Timeline } from '../../MainFlow';
-import { MODELS, SHOPS, PORT_DISCOUNT, price as priceOf } from '../model';
+import { MODELS, PHONE_PLANS, SHOPS, PORT_DISCOUNT, modelOf, colorInfo, isIllustrative, price as priceOf } from '../model';
 
 /* ---------- helpers ---------- */
 
@@ -86,11 +86,11 @@ function IntentSplitter({ props }) {
 
 function DeviceConfigurator({ variant, order, act }) {
   const [run, reason] = useAct(act);
-  const c = colorOf(order.color);
+  const c = colorInfo(order);
   const stock = variant === 'stock' ? shopOf(order) : null;
   const colorStock = (id) => stock?.colors?.[id];
   const storageStock = (s) => stock?.storages?.[s];
-  const model = MODELS[order.model] || MODELS.promax;
+  const model = modelOf(order);
   return (
     <div className="es-card" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 28, alignItems: 'center', padding: 24 }}>
       <PhoneArt hex={c.hex} width={96} />
@@ -100,9 +100,26 @@ function DeviceConfigurator({ variant, order, act }) {
           {stock && <span className="es-note">Showing what's on the shelf at {stock.short}</span>}
         </div>
         <div className="es-stack" style={{ gap: 8 }}>
+          <span className="es-note">Phone</span>
+          <div className="es-row" style={{ gap: 8 }}>
+            {Object.values(MODELS).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={order.model === m.id}
+                className={`es-seg${order.model === m.id ? ' is-selected' : ''}`}
+                onClick={() => run('model', m.id)}
+              >
+                {m.name.replace('iPhone ', '')}
+                <span className="es-seg-note">from {money(m.device[order.plan] ?? m.device.L).replace('.00', '')}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="es-stack" style={{ gap: 8 }}>
           <span className="es-note">Colour · <strong style={{ color: '#141414' }}>{c.name}</strong></span>
           <div className="es-row" style={{ gap: 10, alignItems: 'flex-start' }}>
-            {COLORS.map((col) => {
+            {model.colors.map((col) => {
               const st = colorStock(col.id);
               const out = st ? !st[0] : false;
               const btn = (
@@ -125,7 +142,7 @@ function DeviceConfigurator({ variant, order, act }) {
         <div className="es-stack" style={{ gap: 8 }}>
           <span className="es-note">Storage</span>
           <div className="es-row" style={{ gap: 8 }}>
-            {STORAGES.map((s) => {
+            {model.storages.map((s) => {
               const st = storageStock(s);
               const out = st ? !st[0] : false;
               return (
@@ -165,14 +182,17 @@ const INTENT_LINE = {
 
 function PlanFitCompare({ variant, props = {}, order, act }) {
   const [run, reason] = useAct(act);
-  const model = MODELS[order.model] || MODELS.promax;
+  const [all, setAll] = useState(false);
+  const model = modelOf(order);
   const priced = (id) => model.device[id] !== undefined;
   const recommended = priced(props.recommended) ? props.recommended : order.plan;
-  const others = ['L', 'M', 'S'].filter((id) => id !== recommended && priced(id));
+  const others = PHONE_PLANS.filter((id) => id !== recommended && priced(id));
   const compareWith = props.compareWith && props.compareWith !== recommended && priced(props.compareWith)
     ? props.compareWith
-    : others[0];
-  const shown = [recommended, compareWith].filter(Boolean);
+    : others.find((id) => id === (recommended === 'L' ? 'M' : 'L')) || others[0];
+  // Selected plan always stays visible, even if it isn't one of the two.
+  const pair = [recommended, compareWith, order.plan].filter((id, i, a) => id && a.indexOf(id) === i);
+  const shown = all ? [recommended, ...others] : pair;
   const compact = variant === 'compact';
   const over = (id) => priceOf({ ...order, plan: id }).over24;
 
@@ -203,6 +223,7 @@ function PlanFitCompare({ variant, props = {}, order, act }) {
                 <span className="es-muted" style={{ fontSize: 14 }}>/mth · device {money(model.device[id]).replace('.00', '')}</span>
               </span>
               {!compact && <Features items={[{ text: <><strong>Roaming:</strong> {ROAMING[id]}</> }]} />}
+              {isIllustrative(order, id) && <span className="es-note">Phone price illustrative</span>}
               <span className="es-note">
                 {i === 0
                   ? `24 months: ${money(over(id))}`
@@ -214,15 +235,16 @@ function PlanFitCompare({ variant, props = {}, order, act }) {
       </div>
       <Refused reason={reason} />
       <p className="es-note">
-        Other plans hidden — they don't fit what you told us. <button type="button" className="es-link">Show all plans</button>
+        {all ? 'Showing every phone plan. ' : `${others.length + 1 - shown.length} other plans hidden — they don't fit what you told us. `}
+        <button type="button" className="es-link" onClick={() => setAll((v) => !v)}>{all ? 'Show fewer' : 'Show all plans'}</button>
       </p>
     </div>
   );
 }
 
 const DEST = {
-  MY: { name: 'Malaysia', line: (o) => (o.plan === 'L' ? 'Unlimited data in Malaysia' : '50GB Malaysia data') },
-  JP: { name: 'Japan', line: (o) => ({ L: '12GB worldwide data covers Japan', M: '10GB Asia data covers Japan', S: '4GB Asia data covers Japan' }[o.plan]) }
+  MY: { name: 'Malaysia', line: (o) => (['F', 'P', 'L'].includes(o.plan) ? 'Unlimited data in Malaysia' : o.plan === 'XS' ? '10GB Malaysia data' : '50GB Malaysia data') },
+  JP: { name: 'Japan', line: (o) => ({ F: '48GB worldwide data covers Japan', P: '21GB worldwide data covers Japan', L: '12GB worldwide data covers Japan', M: '10GB Asia data covers Japan', S: '4GB Asia data covers Japan', XS: 'No Japan data on Enhanced XS — add a roaming pack' }[o.plan]) }
 };
 
 function RoamingReady({ props = {}, order }) {
@@ -473,7 +495,7 @@ function PaySummary({ order, price }) {
 /* ---------- done ---------- */
 
 function PostOrderTimeline({ order, price }) {
-  const c = colorOf(order.color);
+  const c = colorInfo(order);
   const shop = shopOf(order);
   const model = MODELS[order.model] || MODELS.promax;
   const steps = [

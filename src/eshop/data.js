@@ -41,13 +41,38 @@ export const STORAGES = ['256GB', '512GB', '1TB', '2TB'];
 export const PLANS = {
   L: { id: 'L', name: 'Priority L', monthly: 128, device: 760 },
   M: { id: 'M', name: 'Enhanced M', monthly: 98, device: 1030 },
-  S: { id: 'S', name: 'Enhanced S', monthly: 78, device: 1210 }
+  S: { id: 'S', name: 'Enhanced S', monthly: 78, device: 1210 },
+  // From the EShop phone-plans page. Device prices for these are derived (see dynamic/model.js).
+  XS: { id: 'XS', name: 'Enhanced XS', monthly: 62, device: 1354 },
+  P: { id: 'P', name: 'Priority Pro', monthly: 178, device: 310 },
+  F: { id: 'F', name: 'Priority Fam', monthly: 288, device: 0 }
 };
 
 export const ROAMING = {
   L: 'Unlimited Malaysia + 12GB worldwide',
   M: '50GB Malaysia, 10GB Asia, 1GB worldwide',
-  S: '50GB Malaysia, 4GB Asia'
+  S: '50GB Malaysia, 4GB Asia',
+  XS: '10GB Malaysia',
+  P: 'Unlimited Malaysia + 21GB worldwide',
+  F: 'Unlimited Malaysia + 48GB worldwide'
+};
+
+// Talktime/SMS and loyalty voucher per phone plan (EShop phone-plans page).
+export const PLAN_EXTRAS = {
+  P: { talk: '1200 mins & 1200 SMS', voucher: '$400 loyalty voucher', network: 'Dedicated lane, 4X faster' },
+  F: { talk: '1800 mins & 1800 SMS', voucher: '$500 annual loyalty voucher', network: 'Dedicated lane, 4X faster' },
+  L: { talk: '800 mins & 800 SMS', voucher: '$250 loyalty voucher', network: 'Dedicated lane, 4X faster' },
+  M: { talk: '600 mins & 600 SMS', voucher: '$150 loyalty voucher', network: '2X faster' },
+  S: { talk: '300 mins & 300 SMS', voucher: '$100 loyalty voucher', network: '2X faster' },
+  XS: { talk: '100 mins & 100 SMS', voucher: null, network: '2X faster' }
+};
+
+// SIM Only plans (EShop SIM-only page) — used for a child or second line.
+export const SIM_PLANS = {
+  lite: { id: 'lite', name: 'Enhanced Lite', monthly: 35, contract: '12-month contract', data: '300GB local · 10GB Malaysia' },
+  core: { id: 'core', name: 'Enhanced Core', monthly: 40, contract: 'No contract', data: 'Unlimited local · 50GB Malaysia · 4GB Asia' },
+  plus: { id: 'plus', name: 'Priority Plus', monthly: 55, contract: 'No contract', data: 'Unlimited local · Unlimited Malaysia · 13GB Asia' },
+  ultra: { id: 'ultra', name: 'Priority Ultra', monthly: 80, contract: 'No contract', data: 'Unlimited local · Unlimited Malaysia · 6GB Asia · 18GB worldwide' }
 };
 
 export const TODAY = 'Tue 27 Oct 2026';

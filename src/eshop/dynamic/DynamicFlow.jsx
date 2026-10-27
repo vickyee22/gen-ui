@@ -11,14 +11,14 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { ArrowRight, ArrowLeft, Mic, Cpu } from 'lucide-react';
-import { CUSTOMER, SCENARIOS, money, colorOf } from '../data';
+import { CUSTOMER, SCENARIOS, money } from '../data';
 import {
   Page, UserSays, AgentSays, Btn, Aside, AsideProduct, SumRow, Row, Progress, Composing
 } from '../ui';
 import { ChatComposer, Recomposed, ChangeLog, SlotDiff, CLabel, useLabels, FALLBACK } from '../agent';
 import { ConfirmedHead, orderNo } from '../MainFlow';
 import { REGISTRY } from './components';
-import { BASE_ORDER, price, applyOps, impact, describe, slotOfKey, summarize, SHOPS } from './model';
+import { BASE_ORDER, price, applyOps, impact, describe, slotOfKey, summarize, colorInfo, SHOPS } from './model';
 import { planJourney, composeStep, interpretChange, reconcile, finalizePatches } from './orchestrator';
 import { llmStatus } from './llm';
 
@@ -377,7 +377,7 @@ function suggestionsFor(step, o, phase) {
 }
 
 function Rail({ order, price: p, changes }) {
-  const c = colorOf(order.color);
+  const c = colorInfo(order);
   const shop = SHOPS.find((s) => s.id === order.shop);
   return (
     <Aside title="Your bundle">
@@ -388,6 +388,7 @@ function Rail({ order, price: p, changes }) {
         <SumRow label="Monthly" value={money(p.monthly)} size="mid" />
         {p.credit > 0 && <SumRow label="Bill credit" value={money(p.credit)} />}
       </div>
+      {p.illustrative && <p className="es-note">Phone price on this plan is illustrative.</p>}
       <div className="es-ledger es-divider-top" style={{ fontSize: 13 }}>
         {p.lines.map((l) => (
           <Row key={l.label} label={l.label} value={l.amount < 0 ? `−${money(-l.amount)}` : l.amount ? money(l.amount) : 'Free'} neg={l.amount < 0} />

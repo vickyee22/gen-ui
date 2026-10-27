@@ -11,7 +11,7 @@
 
 import React, { useState } from 'react';
 import { QrCode, Truck, Check, AlertCircle, Package, ShieldCheck, Store } from 'lucide-react';
-import { PLANS, SLOTS, CUSTOMER, NEW_LINE_OFFER, SIM_ONLY, DELIVERY_FEE, DELIVERY_USUAL, money } from '../../data';
+import { PLANS, SLOTS, CUSTOMER, NEW_LINE_OFFER, SIM_PLANS, DELIVERY_FEE, DELIVERY_USUAL, money } from '../../data';
 import { RESERVATION, CHILD_CONTROLS } from '../../s1data';
 import { Card, Option, Switch, Btn, Row } from '../../ui';
 import { Timeline } from '../../MainFlow';
@@ -365,17 +365,27 @@ function TradeInPayout({ order, price, act }) {
 
 /* ---------------- Multi-line ---------------- */
 
-function LineCard({ props = {}, order, price }) {
+function LineCard({ props = {}, order, price, act }) {
   const role = props.role || 'upgrade';
   if (role === 'new-child') {
     return (
       <Card title="Line 2 · Your child" right={<span className="es-pill is-grey">New line</span>}>
         <div className="es-ledger">
           <Row label="Phone" value="Hand-down of your current iPhone" />
-          <Row label="Plan" value={`SIM Only · ${money(SIM_ONLY)}/mth`} />
           <Row label="Number" value="9638 8347 · eSIM" />
         </div>
-        <p className="es-note">SIM Only price is illustrative.</p>
+        <span className="es-note">SIM Only plan</span>
+        <div className="es-grid-2">
+          {Object.values(SIM_PLANS).map((p) => (
+            <Option key={p.id} compact selected={order.childPlan === p.id} onClick={() => act?.({ key: 'childPlan', value: p.id })}>
+              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, width: '100%' }}>
+                <strong>{p.name}</strong>
+                <span>{money(p.monthly)}/mth</span>
+              </span>
+              <span className="es-muted" style={{ fontSize: 13 }}>{p.data} · {p.contract}</span>
+            </Option>
+          ))}
+        </div>
       </Card>
     );
   }
@@ -422,7 +432,7 @@ function GroupedCart({ order, price }) {
     <Card title="One cart, both lines">
       <div className="es-ledger">
         <Row label={`Line 1 · ${price.model.name}`} value={`${money(plan.monthly)}/mth`} />
-        {order.childLine && <Row label="Line 2 · SIM Only (illustrative)" value={`${money(SIM_ONLY)}/mth`} />}
+        {order.childLine && <Row label={`Line 2 · ${(SIM_PLANS[order.childPlan] || SIM_PLANS.lite).name}`} value={`${money((SIM_PLANS[order.childPlan] || SIM_PLANS.lite).monthly)}/mth`} />}
         {price.lines.map((l) => (
           <Row key={l.label} label={l.label} value={l.amount < 0 ? `−${money(-l.amount)}` : l.amount ? money(l.amount) : 'Free'} neg={l.amount < 0} sub />
         ))}

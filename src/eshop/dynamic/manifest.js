@@ -20,10 +20,10 @@ export const MANIFEST = {
   FulfilmentRecompute: { slots: ['fulfilment'], props: { reason: ['sooner'] }, desc: 'Faster ways to get it (collect tonight/tomorrow vs keep delivery) with price delta.' },
   DeadlineFeasibility: { slots: ['fulfilment'], props: { deadline: 'string' }, desc: 'Timeline checking delivery + number switch against a trip date.' },
 
-  DeviceConfigurator: { slots: ['device'], variants: ['full', 'stock'], desc: 'Colour + storage picker. "stock" greys out options not at the chosen shop.' },
+  DeviceConfigurator: { slots: ['device'], variants: ['full', 'stock'], desc: 'Phone model + colour + storage picker. "stock" greys out options not at the chosen shop.' },
   PlanFitCompare: {
     slots: ['plan'], variants: ['full', 'compact'],
-    props: { intent: ['travel:MY', 'travel:JP', 'local'], recommended: ['L', 'M', 'S'], compareWith: ['L', 'M', 'S'], reason: 'string' },
+    props: { intent: ['travel:MY', 'travel:JP', 'local'], recommended: ['F', 'P', 'L', 'M', 'S', 'XS'], compareWith: ['F', 'P', 'L', 'M', 'S', 'XS'], reason: 'string' },
     desc: 'Max 2 plans side by side: recommended + one alternative, reason, 24-month comparison.'
   },
   RoamingReady: { slots: ['plan'], props: { destination: ['MY', 'JP'] }, desc: 'Confirms roaming is on and what is included at the destination.' },

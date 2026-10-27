@@ -12,8 +12,8 @@
 
 import { askJSON } from './llm';
 import { MANIFEST, SLOTS, manifestForPrompt, validatePatch } from './manifest';
-import { BASE_ORDER, SHOPS, TELCOS, summarize, seedOrder } from './model';
-import { CUSTOMER, TODAY, COLORS, STORAGES, routeIntent } from '../data';
+import { BASE_ORDER, MODELS, PHONE_PLANS, SHOPS, TELCOS, summarize, seedOrder, unavailablePhone, modelIdFrom } from './model';
+import { CUSTOMER, TODAY, COLORS, STORAGES, PLANS, ROAMING, SIM_PLANS, routeIntent } from '../data';
 import { S1_SIGNALS } from '../s1data';
 
 const STEP_SLOTS = SLOTS.filter((s) => !['intent', 'review', 'done'].includes(s));
@@ -22,15 +22,16 @@ const CHECKOUT_SLOTS = ['identity', 'billing', 'payment'];
 const CONTEXT = `Store: Singtel EShop (Singapore). Today: ${TODAY}.
 Customer: ${CUSTOMER.fullName}, existing customer, 2 billing accounts (main ending 4471, second ending 0912), Singpass on file.
 Signals: ${S1_SIGNALS.map((s) => `${s.t} (${s.s})`).join('; ')}.
-Catalogue: iPhone 18 Pro Max (colours ${COLORS.map((c) => c.id).join('/')}, storage ${STORAGES.join('/')}), iPhone 18 Pro (Priority L only).
-Plans: L = Priority L $128/mth (unlimited Malaysia + 12GB worldwide roaming), M = Enhanced M $98/mth (50GB MY, 10GB Asia, 1GB worldwide), S = Enhanced S $78/mth (50GB MY, 4GB Asia).
+Phones: ${Object.values(MODELS).map((m) => `${m.id} = ${m.name} (colours ${m.colors.map((c) => c.id).join('/')}; storage ${m.storages.join('/')})`).join('; ')}.
+Phone plans (24-month): ${PHONE_PLANS.map((id) => `${id} = ${PLANS[id].name} $${PLANS[id].monthly}/mth, roaming ${ROAMING[id]}`).join('; ')}.
+SIM Only plans (for a child/second line): ${Object.values(SIM_PLANS).map((p) => `${p.id} = ${p.name} $${p.monthly}/mth (${p.data})`).join('; ')}.
 Shops: ${SHOPS.map((s) => `${s.id}=${s.short} ${s.distance} ${s.stock}`).join('; ')}.
 Never state prices you compute yourself; the UI shows prices from the price service.
 Don't invent facts: only mention a trip, destination, budget or date if the customer said it. The signals show interest in roaming, not a trip.`;
 
 const SLOT_KEYS = `Order slot keys you may set (value types):
-model: "promax"|"pro"; color: ${COLORS.map((c) => `"${c.id}"`).join('|')}; storage: ${STORAGES.map((s) => `"${s}"`).join('|')};
-plan: "L"|"M"|"S"; lineType: "new"|"port"|"upgrade"; portTelco: ${TELCOS.map((t) => `"${t}"`).join('|')}; portNumber: string;
+model: ${Object.keys(MODELS).map((m) => `"${m}"`).join('|')}; color: a colour id of that phone; storage: ${STORAGES.map((x) => `"${x}"`).join('|')};
+plan: ${PHONE_PLANS.map((x) => `"${x}"`).join('|')}; childPlan: ${Object.keys(SIM_PLANS).map((x) => `"${x}"`).join('|')}; lineType: "new"|"port"|"upgrade"; portTelco: ${TELCOS.map((t) => `"${t}"`).join('|')}; portNumber: string;
 swop: boolean (MobileSwop Plus, needed for $150 handset discount); trials: "none"|"all"|{prime,st,bein,viu,julecool: boolean}; pods: boolean (AirPods Pro 3);
 deferToStore: boolean (number + add-ons decided by store staff); fulfil: "door"|"collect"; shop: "TPN"|"BDK"|"PSR"; slot: "thu"|"fri"|"sat"|"mon" (delivery);
 collectWhen: "tonight"|"tomorrow"; payAt: "now"|"store"; account: "main"|"second"; childLine: boolean; controls: {filter,barring,cap,alert: boolean};
@@ -56,6 +57,22 @@ Respond ONLY with JSON:
 {"message": "one short sentence back to the customer", "goals": ["Phone + plan", "..."], "slots": {only keys the request states or clearly implies}, "steps": [{"title": "Shop", "slots": ["fulfilment"]}]}`;
 
 export async function planJourney(text) {
+  const plan = await planWithLLM(text);
+  // The catalogue is the rules engine's call: never quietly swap a phone.
+  const missing = unavailablePhone(text);
+  if (!missing) return plan;
+  const closest = MODELS[missing.closest];
+  const order = seedOrder({ ...plan.slots, model: missing.closest });
+  return {
+    ...plan,
+    slots: { ...plan.slots, model: missing.closest },
+    order,
+    steps: cleanSteps(plan.steps, order),
+    message: `We don't sell the ${missing.asked} on EShop. We have the ${Object.values(MODELS).map((m) => m.name).join(', ')} — I've started with the ${closest.name}, the closest match. Say the one you want to switch.`
+  };
+}
+
+async function planWithLLM(text) {
   const res = await askJSON(PLAN_PROMPT, text, { maxTokens: 600, temperature: 0 });
   const fb = fallbackPlan(text);
   if (!res) return { ...fb, source: 'rules' };
@@ -136,7 +153,7 @@ function cleanSteps(raw, order = BASE_ORDER) {
     steps[best] = { title: a.title, slots: [...a.slots, ...b.slots.filter((x) => !a.slots.includes(x))] };
   }
   steps.push({ title: 'Checkout', slots: ['fulfilment', ...CHECKOUT_SLOTS], checkout: true });
-  return steps.map((s, i) => ({ ...s, id: `step${i}` }));
+  return steps.map((s, i) => ({ ...s, title: s.checkout ? 'Checkout' : titleFor(s.slots, order), id: `step${i}` }));
 }
 
 /**
@@ -148,12 +165,28 @@ function mergeSlots(llm, rules) {
   for (const [k, v] of Object.entries(rules)) {
     if (out[k] === undefined || out[k] === null || out[k] === '') out[k] = v;
   }
-  if (rules.model === 'pro') out.model = 'pro';
+  if (rules.model) out.model = rules.model;
   if (rules.trip) {
     const t = typeof out.trip === 'object' && out.trip ? out.trip : {};
     out.trip = { destination: rules.trip.destination, date: t.date || rules.trip.date || null };
   }
   return out;
+}
+
+/** Step titles follow what is on the step, so they never promise a missing screen. */
+function titleFor(slots, o) {
+  if (slots.includes('device') && slots.includes('plan')) return 'Fit';
+  const first = slots[0];
+  return {
+    fulfilment: o.fulfil === 'collect' ? 'Shop' : 'Delivery',
+    device: 'Phone',
+    plan: 'Plan',
+    number: o.lineType === 'port' ? 'Number' : 'Line',
+    sim: 'Line',
+    addons: 'Extras',
+    tradein: 'Trade-in',
+    lines: 'Lines'
+  }[first] || 'Step';
 }
 
 /* ---------- Fallback planner (no LLM) ---------- */
@@ -165,10 +198,10 @@ export function fallbackPlan(text) {
   if (color) slots.color = color.id;
   const storage = STORAGES.find((s) => t.includes(s.toLowerCase()));
   if (storage) slots.storage = storage;
-  if (/18 pro(?! max)/.test(t)) slots.model = 'pro';
-  if (/enhanced s\b/.test(t)) slots.plan = 'S';
-  else if (/enhanced m\b/.test(t)) slots.plan = 'M';
-  else if (/priority l/.test(t)) slots.plan = 'L';
+  const phone = t.match(/iphone\s*1[78]\s*pro(\s*max)?/);
+  if (phone) slots.model = modelIdFrom(phone[0]);
+  const planHit = [['XS', /enhanced xs\b/], ['S', /enhanced s\b/], ['M', /enhanced m\b/], ['L', /priority l\b/], ['P', /priority pro\b/], ['F', /priority fam/]].find(([, re]) => re.test(t));
+  if (planHit) slots.plan = planHit[0];
   const shop = SHOPS.find((s) => t.includes(s.short.toLowerCase()));
   const collect = /collect|pick ?(it )?up|in store|in stock|stock near/.test(t);
   if (collect) { slots.fulfil = 'collect'; slots.shop = shop?.id || 'TPN'; }
@@ -304,8 +337,16 @@ const rank = (p, step) => (p.component === 'PaySummary' ? 99 : step.slots.indexO
 function fix(p, order, step = {}) {
   if (p.component === 'ShopAvailability' && step.checkout) return { slot: 'fulfilment', component: 'ReservationCard', props: {} };
   if (p.component === 'ReservationCard' && !step.checkout) return { slot: 'fulfilment', component: 'ShopAvailability', variant: 'list+map', props: {} };
-  if (p.component === 'PlanFitCompare' && !order.trip && /malaysia|japan|tokyo|\bkl\b|trip|travel/i.test(p.props?.reason || '')) {
-    return { ...p, props: { ...p.props, intent: 'local', reason: p.props.recommended === 'L' || !p.props.recommended ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined } };
+  if (p.component === 'PlanFitCompare' && !order.trip) {
+    const props = { ...p.props };
+    const rec = props.recommended || order.plan;
+    if (/malaysia|japan|tokyo|\bkl\b|trip|travel/i.test(props.reason || '')) {
+      props.reason = rec === 'L' ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined;
+    }
+    // No trip stated: recommending a roaming plan must not say "local use".
+    if (['F', 'P', 'L'].includes(rec)) delete props.intent;
+    else props.intent = 'local';
+    return { ...p, props };
   }
   if (p.component === 'DeviceConfigurator') return { ...p, variant: order.fulfil === 'collect' && order.shop ? 'stock' : 'full' };
   return p;
@@ -360,7 +401,7 @@ export function defaultsFor(slot, o, step = {}) {
       return [P('DeviceConfigurator', {}, o.fulfil === 'collect' && o.shop ? 'stock' : 'full')];
     case 'plan': {
       const alt = o.plan === 'L' ? 'M' : 'L';
-      const out = [P('PlanFitCompare', { intent, recommended: o.plan, compareWith: o.model === 'pro' ? undefined : alt }, step.slots?.length > 1 ? 'compact' : 'full')];
+      const out = [P('PlanFitCompare', { intent: !o.trip && ['F', 'P', 'L'].includes(o.plan) ? undefined : intent, recommended: o.plan, compareWith: alt }, step.slots?.length > 1 ? 'compact' : 'full')];
       if (o.trip?.destination === 'JP') out.push(P('RoamingReady', { destination: 'JP' }));
       return out;
     }
@@ -481,8 +522,15 @@ export function fallbackChange(text, order) {
   if (/too much|too expensive|barely travel|don'?t travel|cheaper plan|smaller plan|local use/.test(t)) {
     ops.push({ key: 'plan', value: 'S' });
     message = "Then roaming shouldn't decide the plan. Enhanced S fits local use — here's the trade-off.";
-  } else if (/enhanced m\b/.test(t)) ops.push({ key: 'plan', value: 'M' });
-  else if (/priority l\b/.test(t)) ops.push({ key: 'plan', value: 'L' });
+  } else {
+    const hit = [['XS', /enhanced xs\b/], ['S', /enhanced s\b/], ['M', /enhanced m\b/], ['L', /priority l\b/], ['P', /priority pro\b/], ['F', /priority fam/]].find(([, re]) => re.test(t));
+    if (hit) ops.push({ key: 'plan', value: hit[0] });
+  }
+  const phone = t.match(/(iphone\s*)?1[78]\s*pro(\s*max)?|\bpro max\b|\bthe pro\b/);
+  if (phone) {
+    const id = modelIdFrom(/1[78]/.test(phone[0]) ? phone[0] : `${order.model.endsWith('17') ? '17' : '18'} ${phone[0]}`);
+    if (id && id !== order.model) ops.push({ key: 'model', value: id });
+  }
   if (/drop|remove|no add.?ons|without|skip/.test(t)) {
     if (/mobileswop|swop|add.?ons/.test(t)) ops.push({ key: 'swop', value: false });
     if (/trial|add.?ons/.test(t)) ops.push({ key: 'trials', value: 'none' });
@@ -494,7 +542,7 @@ export function fallbackChange(text, order) {
   } else if (/today|tonight|sooner|collect|pick ?(it )?up/.test(t) && order.fulfil === 'door') {
     ops.push({ key: 'fulfil', value: 'collect' }, { key: 'shop', value: 'TPN' }, { key: 'collectWhen', value: /tonight|today/.test(t) ? 'tonight' : 'tomorrow' });
   }
-  const color = COLORS.find((c) => t.includes(c.id));
+  const color = (MODELS[order.model] || MODELS.promax).colors.find((c) => t.includes(c.id) || t.includes(c.name.toLowerCase()));
   if (color && color.id !== order.color) ops.push({ key: 'color', value: color.id });
   const storage = STORAGES.find((s) => t.includes(s.toLowerCase()));
   if (storage && storage !== order.storage) ops.push({ key: 'storage', value: storage });
