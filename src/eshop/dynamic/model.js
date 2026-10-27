@@ -3,23 +3,62 @@
  *
  * The LLM never sets a price. It proposes slot values (ops) and components
  * (patches); everything here decides whether they are allowed and what they
- * cost. All prices come from the brief (see ../data.js); stock, distances,
- * switch dates and trade-in values are illustrative.
+ * cost. Plan prices come from the EShop plan pages and the brief (see ../data.js);
+ * derived device prices, stock, distances, switch dates and trade-in values are
+ * illustrative.
  */
 
 import {
   PLANS, ROAMING, TRIALS, SLOTS, ACCOUNTS, NUMBERS, PODS, NEW_LINE_OFFER, SWOP_DISCOUNT, SWOP_MONTHLY,
-  REGISTRATION_FEE, DELIVERY_FEE, SIM_ONLY, COLORS, STORAGES, money
+  REGISTRATION_FEE, DELIVERY_FEE, SIM_PLANS, COLORS, STORAGES, money
 } from '../data';
 import { S1_SHOPS } from '../s1data';
 
 /* ---------------- Catalogue ---------------- */
 
+// Phone plans, most to least premium.
+export const PHONE_PLANS = ['F', 'P', 'L', 'M', 'S', 'XS'];
+
+/*
+ * Device price with a plan. The brief gives iPhone 18 Pro Max on L/M/S and the
+ * 18 Pro on L; across those, each $1/mth less on the plan adds $9 to the device
+ * ($30 → $270, $50 → $450). The same rule prices every other phone/plan pair,
+ * and those prices are shown as illustrative.
+ */
+const PER_DOLLAR = 9;
+const priced = (baseL) => Object.fromEntries(
+  PHONE_PLANS.map((id) => [id, Math.max(0, baseL + PER_DOLLAR * (PLANS.L.monthly - PLANS[id].monthly))])
+);
+
+const COLORS_17 = [
+  { id: 'orange', name: 'Cosmic Orange', hex: '#D9692E' },
+  { id: 'deepblue', name: 'Deep Blue', hex: '#2C3A55' },
+  { id: 'silver', name: 'Silver', hex: '#D9DCE0' }
+];
+
 export const MODELS = {
-  promax: { id: 'promax', name: 'iPhone 18 Pro Max', device: { L: 760, M: 1030, S: 1210 } },
-  // The brief only prices the Pro with Priority L.
-  pro: { id: 'pro', name: 'iPhone 18 Pro', device: { L: 580 } }
+  promax: { id: 'promax', name: 'iPhone 18 Pro Max', colors: COLORS, storages: STORAGES, device: priced(760), exact: ['L', 'M', 'S'] },
+  pro: { id: 'pro', name: 'iPhone 18 Pro', colors: COLORS, storages: ['256GB', '512GB', '1TB'], device: priced(580), exact: ['L'] },
+  // iPhone 17 Pro/Pro Max base prices are illustrative.
+  promax17: { id: 'promax17', name: 'iPhone 17 Pro Max', colors: COLORS_17, storages: STORAGES, device: priced(560), exact: [] },
+  pro17: { id: 'pro17', name: 'iPhone 17 Pro', colors: COLORS_17, storages: ['256GB', '512GB', '1TB'], device: priced(380), exact: [] }
 };
+
+export const modelOf = (o) => MODELS[o.model] || MODELS.promax;
+export const colorInfo = (o) => modelOf(o).colors.find((c) => c.id === o.color) || modelOf(o).colors[0];
+/** True when a phone/plan price comes from the derived rule rather than the brief. */
+export const isIllustrative = (o, planId = o.plan) => !modelOf(o).exact.includes(planId);
+
+/** "iphone 17 pro max" → promax17; null if it isn't a phone we sell. */
+export function modelIdFrom(text) {
+  const v = String(text).toLowerCase().replace(/[-_]/g, ' ');
+  if (MODELS[v.replace(/\s/g, '')]) return v.replace(/\s/g, '');
+  const gen = v.match(/\b(1[78])\b/)?.[1] || (/\b\d{1,2}\b/.test(v) ? 'other' : '18');
+  if (gen === 'other') return null;
+  const max = /pro ?max|promax/.test(v);
+  if (!max && !/\bpro\b/.test(v)) return null;
+  return `${max ? 'promax' : 'pro'}${gen === '17' ? '17' : ''}`;
+}
 
 export const SHOPS = S1_SHOPS; // TPN · BDK · PSR with per-shop colour/storage stock
 export const TELCOS = ['M1', 'StarHub', 'SIMBA', 'Circles.Life', 'giga', 'Other'];
@@ -55,6 +94,7 @@ export const BASE_ORDER = {
   payAt: 'now', // now | store
   account: 'main',
   childLine: false,
+  childPlan: 'lite', // SIM Only plan for the child line
   controls: { filter: true, barring: true, cap: true, alert: true },
   tradeIn: null, // { model, storage, screen: 'ok'|'bad', battery: 'ok'|'bad', works: 'ok'|'bad' }
   payout: 'credit', // credit ($0 today, surplus to bill) | pay (pay subtotal, full credit)
@@ -75,7 +115,6 @@ export function seedOrder(slots = {}) {
   if (!('swop' in slots)) o.swop = o.lineType === 'new' && !o.deferToStore ? true : o.tradeIn ? true : false;
   if (!('trials' in slots) && (o.deferToStore || o.lineType !== 'new')) o.trials = {};
   if (o.fulfil === 'collect' && !o.shop) o.shop = 'TPN';
-  if (o.model === 'pro') o.plan = 'L';
   return o;
 }
 
@@ -90,10 +129,11 @@ function toOps(slots) {
 export function unavailablePhone(text) {
   const t = text.toLowerCase().replace(/(trad(e|ing)[- ]?in|hand(ing)?[- ]down|my (old|current))[^.,;]*/g, ' ');
   const m = t.match(/iphone\s*(\d{1,2})\s*(pro\s*max|pro|plus|mini|air|e\b)?/);
-  if (m && m[1] !== '18') {
+  if (m && !modelIdFrom(m[0])) {
     const tier = (m[2] || '').replace(/\s+/g, ' ').trim();
     const asked = `iPhone ${m[1]}${tier ? ` ${tier.replace(/\b\w/g, (c) => c.toUpperCase())}` : ''}`;
-    return { asked, closest: /max/.test(tier) || !tier ? 'promax' : 'pro' };
+    const gen = m[1] === '17' ? '17' : '';
+    return { asked, closest: /max/.test(tier) || !tier ? `promax${gen}` : `pro${gen}` };
   }
   const other = t.match(/\b(samsung|galaxy|pixel)\b[\w ]{0,20}/);
   if (other) return { asked: other[0].trim().replace(/\b\w/g, (c) => c.toUpperCase()), closest: 'promax' };
@@ -109,7 +149,7 @@ export function tradeEstimate(t) {
 }
 
 export function price(o) {
-  const model = MODELS[o.model] || MODELS.promax;
+  const model = modelOf(o);
   const plan = PLANS[o.plan];
   const device = model.device[o.plan] ?? model.device.L;
   const lines = [{ label: `${model.name} with ${plan.name}`, amount: device }];
@@ -118,6 +158,9 @@ export function price(o) {
   if (o.swop) lines.push({ label: 'MobileSwop Plus handset discount', amount: -SWOP_DISCOUNT });
   const voucherOff = o.voucher ? VOUCHERS[o.voucher] || 0 : 0;
   if (voucherOff) lines.push({ label: `Voucher ${o.voucher}`, amount: -voucherOff });
+  // Offers can bring the phone down to $0 but not below.
+  const deviceNet = lines.reduce((s, l) => s + l.amount, 0);
+  if (deviceNet < 0) lines.push({ label: 'Offers capped at the phone price', amount: -deviceNet });
   if (o.pods) lines.push({ label: `${PODS.name} (with phone)`, amount: PODS.price });
   // A trade-in courier delivers the new phone and collects the old one in one
   // visit, so it carries no separate delivery fee (as in the brief's Scenario E).
@@ -142,13 +185,14 @@ export function price(o) {
   const planMonthly = o.lineType === 'port' ? round2(plan.monthly * (1 - PORT_DISCOUNT)) : plan.monthly;
   const monthlyLines = [{ label: o.lineType === 'port' ? `${plan.name} (10% off)` : plan.name, amount: planMonthly }];
   if (o.swop) monthlyLines.push({ label: 'MobileSwop Plus', amount: SWOP_MONTHLY });
-  if (o.childLine) monthlyLines.push({ label: 'Child line · SIM Only (illustrative)', amount: SIM_ONLY });
+  const child = SIM_PLANS[o.childPlan] || SIM_PLANS.lite;
+  if (o.childLine) monthlyLines.push({ label: `Child line · ${child.name} (SIM Only)`, amount: child.monthly });
   const monthly = round2(monthlyLines.reduce((s, l) => s + l.amount, 0));
   const trialsMonthly = round2(TRIALS.reduce((s, t) => s + (o.trials?.[t.id] ? t.price : 0), 0));
   const registration = newLine ? REGISTRATION_FEE : 0;
 
   return {
-    model, plan, device, lines, subtotal, estimate, credit, today, payNow, monthly, monthlyLines, trialsMonthly,
+    model, plan, device, illustrative: isIllustrative(o), lines, subtotal, estimate, credit, today, payNow, monthly, monthlyLines, trialsMonthly,
     registration, firstBill: round2(monthly + registration), roaming: ROAMING[o.plan], over24: round2(today + monthly * 24)
   };
 }
@@ -162,7 +206,7 @@ const SLOT_OF = {
   lineType: 'number', number: 'number', portNumber: 'number', portTelco: 'number', sim: 'sim',
   swop: 'addons', trials: 'addons', remind: 'addons', pods: 'addons', deferToStore: 'addons',
   fulfil: 'fulfilment', shop: 'fulfilment', slot: 'fulfilment', collectWhen: 'fulfilment', payAt: 'payment',
-  account: 'billing', childLine: 'lines', controls: 'lines', tradeIn: 'tradein', payout: 'payment',
+  account: 'billing', childLine: 'lines', childPlan: 'lines', controls: 'lines', tradeIn: 'tradein', payout: 'payment',
   voucher: 'payment', trip: 'plan', budget: 'plan'
 };
 export const slotOfKey = (key) => SLOT_OF[key];
@@ -176,31 +220,43 @@ const bool = (v) => v === true || v === 'true' || v === 'on' || v === 'yes';
 export function validateOp(o, { key, value }) {
   switch (key) {
     case 'model': {
-      const v = String(value).toLowerCase();
-      if (/iphone\s*(?!18)\d{1,2}\b|samsung|galaxy|pixel/.test(v)) return no(`We don't sell the ${value} here — we have the iPhone 18 Pro and iPhone 18 Pro Max.`);
-      const id = MODELS[v] ? v : /pro ?max|promax/.test(v) ? 'promax' : /\bpro\b/.test(v) ? 'pro' : null;
-      if (!id) return no(`We don't sell "${value}" here.`);
-      return yes(id === 'pro' ? { model: id, plan: 'L' } : { model: id });
+      const id = modelIdFrom(value);
+      if (!id) return no(`We don't sell the ${value} here — we have the ${Object.values(MODELS).map((m) => m.name).join(', ')}.`);
+      const m = MODELS[id];
+      // Keep colour/storage if the new phone has them, else its first option.
+      return yes({
+        model: id,
+        color: m.colors.some((c) => c.id === o.color) ? o.color : m.colors[0].id,
+        storage: m.storages.includes(o.storage) ? o.storage : m.storages[0]
+      });
     }
     case 'color': {
-      const c = COLORS.find((x) => x.id === String(value).toLowerCase() || x.name.toLowerCase() === String(value).toLowerCase());
-      if (!c) return no(`${value} isn't a colour for this phone. It comes in ${COLORS.map((x) => x.name).join(', ')}.`);
+      const colors = modelOf(o).colors;
+      const v = String(value).toLowerCase();
+      const c = colors.find((x) => x.id === v || x.name.toLowerCase() === v || x.name.toLowerCase().includes(v));
+      if (!c) return no(`${value} isn't a colour for the ${modelOf(o).name}. It comes in ${colors.map((x) => x.name).join(', ')}.`);
       const stock = shopStock(o, 'colors', c.id);
       if (stock && !stock[0]) return no(`${c.name} isn't on the shelf at ${shopName(o)} — ${stock[1]}.`);
       return yes({ color: c.id });
     }
     case 'storage': {
       const s = String(value).toUpperCase().replace(/\s/g, '');
-      if (!STORAGES.includes(s)) return no(`Storage comes in ${STORAGES.join(', ')}.`);
+      const storages = modelOf(o).storages;
+      if (!storages.includes(s)) return no(`The ${modelOf(o).name} comes in ${storages.join(', ')}.`);
       const stock = shopStock(o, 'storages', s);
       if (stock && !stock[0]) return no(`${s} isn't in stock at ${shopName(o)} — it would have to be ordered in.`);
       return yes({ storage: s });
     }
     case 'plan': {
       const id = planId(value);
-      if (!id) return no('Plans available: Priority L, Enhanced M, Enhanced S.');
-      if (o.model === 'pro' && id !== 'L') return no('In this demo the iPhone 18 Pro is only priced with Priority L.');
+      if (!id) return no(`Phone plans: ${PHONE_PLANS.map((x) => PLANS[x].name).join(', ')}.`);
       return yes({ plan: id });
+    }
+    case 'childPlan': {
+      const v = String(value).toLowerCase();
+      const c = Object.values(SIM_PLANS).find((x) => x.id === v || x.name.toLowerCase() === v || x.name.toLowerCase().includes(v));
+      if (!c) return no(`SIM Only plans: ${Object.values(SIM_PLANS).map((x) => x.name).join(', ')}.`);
+      return yes({ childPlan: c.id, childLine: true });
     }
     case 'lineType':
       if (!LINE_TYPES.includes(value)) return no('Line must be new, port-in or upgrade.');
@@ -299,12 +355,14 @@ function shopStock(o, kind, id) {
   return s?.[kind]?.[id] || null;
 }
 const shopName = (o) => SHOPS.find((x) => x.id === o.shop)?.short || 'that shop';
+const PLAN_NAMES = {
+  L: ['l', 'priority l', 'prio_l'], M: ['m', 'enhanced m', 'enh_m'], S: ['s', 'enhanced s', 'enh_s'],
+  XS: ['xs', 'enhanced xs', 'enh_xs'], P: ['p', 'priority pro', 'prio_pro', 'pro plan'], F: ['f', 'priority fam', 'fam', 'family plan']
+};
 const planId = (v) => {
-  const s = String(v).toLowerCase();
-  if (['l', 'priority l', 'prio_l', 'priority'].includes(s)) return 'L';
-  if (['m', 'enhanced m', 'enh_m'].includes(s)) return 'M';
-  if (['s', 'enhanced s', 'enh_s'].includes(s)) return 'S';
-  return PLANS[v] ? v : null;
+  const s = String(v).toLowerCase().trim();
+  if (PLANS[String(v).toUpperCase()] && PHONE_PLANS.includes(String(v).toUpperCase())) return String(v).toUpperCase();
+  return Object.keys(PLAN_NAMES).find((id) => PLAN_NAMES[id].includes(s)) || null;
 };
 const maskNumber = (v) => {
   const d = String(v).replace(/\D/g, '').slice(-8);
@@ -357,8 +415,9 @@ export function impact(before, after) {
 export function describe(o, key) {
   switch (key) {
     case 'plan': return PLANS[o.plan].name;
-    case 'model': return MODELS[o.model].name;
-    case 'color': return COLORS.find((c) => c.id === o.color)?.name;
+    case 'model': return modelOf(o).name;
+    case 'color': return colorInfo(o).name;
+    case 'childPlan': return `${(SIM_PLANS[o.childPlan] || SIM_PLANS.lite).name} for the child line`;
     case 'storage': return o.storage;
     case 'swop': return o.swop ? 'MobileSwop' : 'No MobileSwop';
     case 'trials': {
@@ -389,6 +448,7 @@ export function summarize(o) {
   const p = price(o);
   return {
     device: `${p.model.name} · ${describe(o, 'color')} · ${o.storage}`,
+    childPlan: o.childLine ? describe(o, 'childPlan') : null,
     plan: `${p.plan.name} ($${p.plan.monthly}/mth) · roaming: ${p.roaming}`,
     line: describe(o, 'lineType'),
     addons: [describe(o, 'swop'), describe(o, 'trials'), describe(o, 'pods')].join(' · '),
