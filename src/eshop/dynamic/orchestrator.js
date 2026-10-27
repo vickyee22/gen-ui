@@ -12,7 +12,7 @@
 
 import { askJSON } from './llm';
 import { MANIFEST, SLOTS, manifestForPrompt, validatePatch } from './manifest';
-import { BASE_ORDER, SHOPS, TELCOS, summarize, seedOrder } from './model';
+import { BASE_ORDER, MODELS, SHOPS, TELCOS, summarize, seedOrder, unavailablePhone } from './model';
 import { CUSTOMER, TODAY, COLORS, STORAGES, routeIntent } from '../data';
 import { S1_SIGNALS } from '../s1data';
 
@@ -56,6 +56,22 @@ Respond ONLY with JSON:
 {"message": "one short sentence back to the customer", "goals": ["Phone + plan", "..."], "slots": {only keys the request states or clearly implies}, "steps": [{"title": "Shop", "slots": ["fulfilment"]}]}`;
 
 export async function planJourney(text) {
+  const plan = await planWithLLM(text);
+  // The catalogue is the rules engine's call: never quietly swap a phone.
+  const missing = unavailablePhone(text);
+  if (!missing) return plan;
+  const closest = MODELS[missing.closest];
+  const order = seedOrder({ ...plan.slots, model: missing.closest });
+  return {
+    ...plan,
+    slots: { ...plan.slots, model: missing.closest },
+    order,
+    steps: cleanSteps(plan.steps, order),
+    message: `We don't sell the ${missing.asked} on EShop. We have the iPhone 18 Pro and iPhone 18 Pro Max — I've started with the ${closest.name}, the closest match. Say "Pro Max instead" or "Pro instead" to switch.`
+  };
+}
+
+async function planWithLLM(text) {
   const res = await askJSON(PLAN_PROMPT, text, { maxTokens: 600, temperature: 0 });
   const fb = fallbackPlan(text);
   if (!res) return { ...fb, source: 'rules' };
@@ -136,7 +152,7 @@ function cleanSteps(raw, order = BASE_ORDER) {
     steps[best] = { title: a.title, slots: [...a.slots, ...b.slots.filter((x) => !a.slots.includes(x))] };
   }
   steps.push({ title: 'Checkout', slots: ['fulfilment', ...CHECKOUT_SLOTS], checkout: true });
-  return steps.map((s, i) => ({ ...s, id: `step${i}` }));
+  return steps.map((s, i) => ({ ...s, title: s.checkout ? 'Checkout' : titleFor(s.slots, order), id: `step${i}` }));
 }
 
 /**
@@ -154,6 +170,22 @@ function mergeSlots(llm, rules) {
     out.trip = { destination: rules.trip.destination, date: t.date || rules.trip.date || null };
   }
   return out;
+}
+
+/** Step titles follow what is on the step, so they never promise a missing screen. */
+function titleFor(slots, o) {
+  if (slots.includes('device') && slots.includes('plan')) return 'Fit';
+  const first = slots[0];
+  return {
+    fulfilment: o.fulfil === 'collect' ? 'Shop' : 'Delivery',
+    device: 'Phone',
+    plan: 'Plan',
+    number: o.lineType === 'port' ? 'Number' : 'Line',
+    sim: 'Line',
+    addons: 'Extras',
+    tradein: 'Trade-in',
+    lines: 'Lines'
+  }[first] || 'Step';
 }
 
 /* ---------- Fallback planner (no LLM) ---------- */
@@ -304,8 +336,16 @@ const rank = (p, step) => (p.component === 'PaySummary' ? 99 : step.slots.indexO
 function fix(p, order, step = {}) {
   if (p.component === 'ShopAvailability' && step.checkout) return { slot: 'fulfilment', component: 'ReservationCard', props: {} };
   if (p.component === 'ReservationCard' && !step.checkout) return { slot: 'fulfilment', component: 'ShopAvailability', variant: 'list+map', props: {} };
-  if (p.component === 'PlanFitCompare' && !order.trip && /malaysia|japan|tokyo|\bkl\b|trip|travel/i.test(p.props?.reason || '')) {
-    return { ...p, props: { ...p.props, intent: 'local', reason: p.props.recommended === 'L' || !p.props.recommended ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined } };
+  if (p.component === 'PlanFitCompare' && !order.trip) {
+    const props = { ...p.props };
+    const rec = props.recommended || order.plan;
+    if (/malaysia|japan|tokyo|\bkl\b|trip|travel/i.test(props.reason || '')) {
+      props.reason = rec === 'L' ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined;
+    }
+    // No trip stated: recommending the roaming plan must not say "local use".
+    if (rec === 'L') delete props.intent;
+    else props.intent = 'local';
+    return { ...p, props };
   }
   if (p.component === 'DeviceConfigurator') return { ...p, variant: order.fulfil === 'collect' && order.shop ? 'stock' : 'full' };
   return p;
@@ -360,7 +400,7 @@ export function defaultsFor(slot, o, step = {}) {
       return [P('DeviceConfigurator', {}, o.fulfil === 'collect' && o.shop ? 'stock' : 'full')];
     case 'plan': {
       const alt = o.plan === 'L' ? 'M' : 'L';
-      const out = [P('PlanFitCompare', { intent, recommended: o.plan, compareWith: o.model === 'pro' ? undefined : alt }, step.slots?.length > 1 ? 'compact' : 'full')];
+      const out = [P('PlanFitCompare', { intent: !o.trip && o.plan === 'L' ? undefined : intent, recommended: o.plan, compareWith: o.model === 'pro' ? undefined : alt }, step.slots?.length > 1 ? 'compact' : 'full')];
       if (o.trip?.destination === 'JP') out.push(P('RoamingReady', { destination: 'JP' }));
       return out;
     }

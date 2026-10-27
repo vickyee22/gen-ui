@@ -83,6 +83,23 @@ function toOps(slots) {
   return Object.entries(slots).map(([key, value]) => ({ key, value }));
 }
 
+/**
+ * A phone the customer asked for that this store doesn't sell, plus the
+ * closest one it does. Phones being traded in or handed down don't count.
+ */
+export function unavailablePhone(text) {
+  const t = text.toLowerCase().replace(/(trad(e|ing)[- ]?in|hand(ing)?[- ]down|my (old|current))[^.,;]*/g, ' ');
+  const m = t.match(/iphone\s*(\d{1,2})\s*(pro\s*max|pro|plus|mini|air|e\b)?/);
+  if (m && m[1] !== '18') {
+    const tier = (m[2] || '').replace(/\s+/g, ' ').trim();
+    const asked = `iPhone ${m[1]}${tier ? ` ${tier.replace(/\b\w/g, (c) => c.toUpperCase())}` : ''}`;
+    return { asked, closest: /max/.test(tier) || !tier ? 'promax' : 'pro' };
+  }
+  const other = t.match(/\b(samsung|galaxy|pixel)\b[\w ]{0,20}/);
+  if (other) return { asked: other[0].trim().replace(/\b\w/g, (c) => c.toUpperCase()), closest: 'promax' };
+  return null;
+}
+
 /* ---------------- Pricing ---------------- */
 
 export function tradeEstimate(t) {
@@ -160,6 +177,7 @@ export function validateOp(o, { key, value }) {
   switch (key) {
     case 'model': {
       const v = String(value).toLowerCase();
+      if (/iphone\s*(?!18)\d{1,2}\b|samsung|galaxy|pixel/.test(v)) return no(`We don't sell the ${value} here — we have the iPhone 18 Pro and iPhone 18 Pro Max.`);
       const id = MODELS[v] ? v : /pro ?max|promax/.test(v) ? 'promax' : /\bpro\b/.test(v) ? 'pro' : null;
       if (!id) return no(`We don't sell "${value}" here.`);
       return yes(id === 'pro' ? { model: id, plan: 'L' } : { model: id });
