@@ -72,12 +72,39 @@ export async function planJourney(text) {
   };
 }
 
+/**
+ * Slots the LLM may only set when the request talks about them. Anything else
+ * keeps its default, so the model can't pick a plan or add-on for the customer.
+ */
+const NEEDS_MENTION = {
+  plan: /plan|priority|enhanced|budget|cheap|afford|travel|roam|data|\$\s?\d/i,
+  swop: /mobileswop|swop|insurance|protect/i,
+  trials: /trial|prime|straits|bein|viu|ju le/i,
+  pods: /airpods|earbuds|accessor/i,
+  payAt: /pay (in|at the) (store|shop)/i,
+  childPlan: /sim only|enhanced lite|enhanced core|priority plus|priority ultra/i
+};
+
+/** A stated budget caps the plan: pick the richest plan at or under it. */
+function withinBudget(slots) {
+  const budget = Number(slots.budget);
+  if (!budget) return slots;
+  const id = String(slots.plan || 'L').toUpperCase();
+  if (PLANS[id] && PLANS[id].monthly <= budget) return slots;
+  const fit = PHONE_PLANS.find((p) => PLANS[p].monthly <= budget);
+  return fit ? { ...slots, plan: fit } : slots;
+}
+
+function grounded(slots, text) {
+  return Object.fromEntries(Object.entries(slots).filter(([k]) => !NEEDS_MENTION[k] || NEEDS_MENTION[k].test(text)));
+}
+
 async function planWithLLM(text) {
   const res = await askJSON(PLAN_PROMPT, text, { maxTokens: 600, temperature: 0 });
   const fb = fallbackPlan(text);
   if (!res) return { ...fb, source: 'rules' };
   const j = res.json || {};
-  const slots = mergeSlots(j.slots && typeof j.slots === 'object' ? j.slots : {}, fb.slots);
+  const slots = withinBudget(mergeSlots(grounded(j.slots && typeof j.slots === 'object' ? j.slots : {}, text), fb.slots));
   const order = seedOrder(slots);
   const steps = cleanSteps(j.steps, order);
   if (!steps) return { ...fb, source: 'rules' };
@@ -143,6 +170,14 @@ function cleanSteps(raw, order = BASE_ORDER) {
   steps = steps.map((s) => ({ ...s, slots: s.slots.filter((x) => !CHECKOUT_SLOTS.includes(x)) })).filter((s) => s.slots.length || s.title === 'Checkout');
   const last = steps[steps.length - 1];
   if (last && last.title.toLowerCase() === 'checkout') steps.pop();
+  // The phone they asked for comes before the plan, right after any lead step.
+  steps = steps.filter((s) => s.slots.length && s.title.toLowerCase() !== 'checkout');
+  const leadCount = order.fulfil === 'collect' || order.lineType === 'port' ? 1 : 0;
+  const deviceAt = steps.findIndex((s) => s.slots.includes('device'));
+  if (deviceAt > leadCount) steps.splice(leadCount, 0, ...steps.splice(deviceAt, 1));
+  const planAt = steps.findIndex((s) => s.slots.includes('plan'));
+  if (planAt > leadCount + 1 && !steps[leadCount].slots.includes('plan')) steps.splice(leadCount + 1, 0, ...steps.splice(planAt, 1));
+
   // At most 5 screens before checkout: merge the smallest neighbours.
   while (steps.length > 5) {
     let best = 0;
@@ -340,7 +375,7 @@ function fix(p, order, step = {}) {
   if (p.component === 'PlanFitCompare' && !order.trip) {
     const props = { ...p.props };
     const rec = props.recommended || order.plan;
-    if (/malaysia|japan|tokyo|\bkl\b|trip|travel/i.test(props.reason || '')) {
+    if (/malaysia|japan|tokyo|\bkl\b|trip|travel|roam/i.test(props.reason || '')) {
       props.reason = rec === 'L' ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined;
     }
     // No trip stated: recommending a roaming plan must not say "local use".
