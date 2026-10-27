@@ -1,0 +1,32 @@
+/* EShop Buyflow — Scenario 1 and closing example. Scoped under .es. */
+
+.es .es-s1-qr {
+    flex: none;
+    width: 140px;
+    border-radius: 14px;
+    background: var(--es-soft);
+    color: var(--es-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.es .es-s1-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: var(--es-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+@media (max-width: 560px) {
+    .es .es-s1-qr { width: 100%; flex-direction: row; }
+}
