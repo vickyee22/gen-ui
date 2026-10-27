@@ -49,7 +49,12 @@ ${SLOT_KEYS}
 Steps: each step is one decision screen with a one-word title (e.g. Shop, Fit, Line, Extras, Number, Lines, Trade-in) and the slots it decides, chosen from:
 ${STEP_SLOTS.join(', ')}.
 - Intent decides which slot comes first: if they asked to collect/pick up or about stock → fulfilment first; switching telco/keeping number → number first; trade-in → tradein early; a line for a child → lines early.
-- device and plan must appear. Put a final "Checkout" step with identity, billing, payment (and fulfilment again if collecting, to show the reservation).
+- device and plan must appear. Layout guideline for them:
+  · If the request is about a plan (says plan / phone plan / device plan, names a plan, gives a budget, or mentions roaming, travel or a trip), put plan and device on ONE step with slots ["plan", "device"] — plan first, phone picker below.
+  · If they only name a phone (e.g. "I want the iPhone 18 Pro Max"), use a "Phone" step ["device"] followed by a "Plan" step ["plan"].
+  · Either way these come right after any step the customer led with (shop or number).
+  · Examples: "I need a phone plan with Malaysia roaming" → [{"title":"Plan","slots":["plan","device"]}, …]. "iPhone 18 Pro Max on Priority L, trading in my old phone" → [{"title":"Plan","slots":["plan","device"]}, {"title":"Trade-in","slots":["tradein"]}, …]. "Switching to Singtel, keep my number, flying to Tokyo" → [{"title":"Number","slots":["number"]}, {"title":"Plan","slots":["plan","device"]}, …]. "I want the iPhone 18 Pro Max" → [{"title":"Phone","slots":["device"]}, {"title":"Plan","slots":["plan"]}, …].
+- Put a final "Checkout" step with identity, billing, payment (and fulfilment again if collecting, to show the reservation).
 - If collecting and they want setup in store, set deferToStore and skip separate number/addons steps.
 - 3–6 steps total. Don't add review or done.
 
@@ -67,7 +72,7 @@ export async function planJourney(text) {
     ...plan,
     slots: { ...plan.slots, model: missing.closest },
     order,
-    steps: cleanSteps(plan.steps, order),
+    steps: cleanSteps(plan.steps, order, plan.source === 'llm' ? null : plan.planLed),
     message: `We don't sell the ${missing.asked} on EShop. We have the ${Object.values(MODELS).map((m) => m.name).join(', ')} — I've started with the ${closest.name}, the closest match. Say the one you want to switch.`
   };
 }
@@ -95,6 +100,9 @@ function withinBudget(slots) {
   return fit ? { ...slots, plan: fit } : slots;
 }
 
+/** Rules-engine version of the layout guideline: is the request about a plan, not just a phone? */
+export const isPlanLed = (text) => /plan|priority|enhanced|budget|cheap|afford|travel|roam|data|\$\s?\d|\bfly\b|flight|trip|overseas|abroad|tokyo|japan|malaysia|\bkl\b/i.test(text);
+
 function grounded(slots, text) {
   return Object.fromEntries(Object.entries(slots).filter(([k]) => !NEEDS_MENTION[k] || NEEDS_MENTION[k].test(text)));
 }
@@ -106,7 +114,12 @@ async function planWithLLM(text) {
   const j = res.json || {};
   const slots = withinBudget(mergeSlots(grounded(j.slots && typeof j.slots === 'object' ? j.slots : {}, text), fb.slots));
   const order = seedOrder(slots);
-  const steps = cleanSteps(j.steps, order);
+  // LLM chose the layout; if it dropped device or plan, the rules re-add them per the guideline.
+  const planLed = isPlanLed(text);
+  const llmSteps = cleanSteps(j.steps, order, null);
+  const steps = llmSteps && llmSteps.some((s) => s.slots.includes('device')) && llmSteps.some((s) => s.slots.includes('plan'))
+    ? llmSteps
+    : cleanSteps(j.steps, order, planLed);
   if (!steps) return { ...fb, source: 'rules' };
   return {
     message: typeof j.message === 'string' ? j.message : fb.message,
@@ -114,6 +127,7 @@ async function planWithLLM(text) {
     slots,
     order,
     steps,
+    planLed,
     source: 'llm',
     ms: res.ms,
     raw: j
@@ -125,7 +139,7 @@ async function planWithLLM(text) {
  * rules make sure the slots this order needs are present and that the slot the
  * customer led with comes first.
  */
-function cleanSteps(raw, order = BASE_ORDER) {
+function cleanSteps(raw, order = BASE_ORDER, planLed = null) {
   if (!Array.isArray(raw) || !raw.length) return null;
   const seen = new Set();
   let steps = raw
@@ -151,11 +165,6 @@ function cleanSteps(raw, order = BASE_ORDER) {
     steps = steps.map((s) => ({ ...s, slots: s.slots.filter((x) => x !== 'fulfilment') })).filter((s) => s.slots.length || s.title.toLowerCase() === 'checkout');
     if (order.lineType === 'port') lead('number', 'Number');
   }
-  if (!has('device') || !has('plan')) {
-    const fit = { title: 'Fit', slots: ['device', 'plan'].filter((x) => !has(x)) };
-    const at = steps.findIndex((s) => s.title.toLowerCase() === 'checkout');
-    steps.splice(at < 0 ? steps.length : at, 0, fit);
-  }
   const before = (slot, title) => {
     if (has(slot)) return;
     const at = steps.findIndex((s) => s.title.toLowerCase() === 'checkout');
@@ -170,13 +179,21 @@ function cleanSteps(raw, order = BASE_ORDER) {
   steps = steps.map((s) => ({ ...s, slots: s.slots.filter((x) => !CHECKOUT_SLOTS.includes(x)) })).filter((s) => s.slots.length || s.title === 'Checkout');
   const last = steps[steps.length - 1];
   if (last && last.title.toLowerCase() === 'checkout') steps.pop();
-  // The phone they asked for comes before the plan, right after any lead step.
+  // Phone and plan, right after any lead step (Shop / Number):
+  //  - a plan request ("phone plan", plan name, budget, roaming) → one screen, plan on top, phone below;
+  //  - a phone-only request → the phone screen, then the plan screen.
+  // The LLM decides this layout from the prompt guideline (planLed === null);
+  // the rules apply it themselves when the LLM is off or left a slot out.
   steps = steps.filter((s) => s.slots.length && s.title.toLowerCase() !== 'checkout');
-  const leadCount = order.fulfil === 'collect' || order.lineType === 'port' ? 1 : 0;
-  const deviceAt = steps.findIndex((s) => s.slots.includes('device'));
-  if (deviceAt > leadCount) steps.splice(leadCount, 0, ...steps.splice(deviceAt, 1));
-  const planAt = steps.findIndex((s) => s.slots.includes('plan'));
-  if (planAt > leadCount + 1 && !steps[leadCount].slots.includes('plan')) steps.splice(leadCount + 1, 0, ...steps.splice(planAt, 1));
+  const missing = !steps.some((s) => s.slots.includes('device')) || !steps.some((s) => s.slots.includes('plan'));
+  if (planLed !== null || missing) {
+    const leadCount = order.fulfil === 'collect' || order.lineType === 'port' ? 1 : 0;
+    steps = steps.map((s) => ({ ...s, slots: s.slots.filter((x) => x !== 'device' && x !== 'plan') })).filter((s) => s.slots.length);
+    const fit = planLed
+      ? [{ title: 'Plan', slots: ['plan', 'device'] }]
+      : [{ title: 'Phone', slots: ['device'] }, { title: 'Plan', slots: ['plan'] }];
+    steps.splice(Math.min(leadCount, steps.length), 0, ...fit);
+  }
 
   // At most 5 screens before checkout: merge the smallest neighbours.
   while (steps.length > 5) {
@@ -210,7 +227,7 @@ function mergeSlots(llm, rules) {
 
 /** Step titles follow what is on the step, so they never promise a missing screen. */
 function titleFor(slots, o) {
-  if (slots.includes('device') && slots.includes('plan')) return 'Fit';
+  if (slots.includes('device') && slots.includes('plan')) return slots[0] === 'plan' ? 'Plan' : 'Fit';
   const first = slots[0];
   return {
     fulfilment: o.fulfil === 'collect' ? 'Shop' : 'Delivery',
@@ -276,7 +293,8 @@ export function fallbackPlan(text) {
     goals,
     slots,
     order: seedOrder(slots),
-    steps: cleanSteps(steps, seedOrder(slots))
+    steps: cleanSteps(steps, seedOrder(slots), isPlanLed(text)),
+    planLed: isPlanLed(text)
   };
 }
 
@@ -376,7 +394,8 @@ function fix(p, order, step = {}) {
     const props = { ...p.props };
     const rec = props.recommended || order.plan;
     if (/malaysia|japan|tokyo|\bkl\b|trip|travel|roam/i.test(props.reason || '')) {
-      props.reason = rec === 'L' ? 'You compared Priority L twice and spent longest on its roaming details.' : undefined;
+      if (rec === 'L') props.reason = 'You compared Priority L twice and spent longest on its roaming details.';
+      else delete props.reason;
     }
     // No trip stated: recommending a roaming plan must not say "local use".
     if (['F', 'P', 'L'].includes(rec)) delete props.intent;
