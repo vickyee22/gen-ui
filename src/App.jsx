@@ -10,6 +10,7 @@ import { classifyIntent } from './engine/intentClassifier';
 import { orchestrate, getCacheStats } from './engine/orchestrator';
 import { GenUIRenderer } from './components/genui';
 import { WebChannel, MobileChannel, ChatChannel } from './channels';
+import EShopApp from './eshop/EShopApp';
 import './index.css';
 
 // Tier 1: Query-level cache — identical queries skip classification AND orchestration entirely
@@ -84,7 +85,8 @@ function App() {
   const sessionResumeTimeoutRef = useRef(null);
 
   // Domain selection
-  const [domain, setDomain] = useState(null); // null = landing page
+  // null = landing page; 'eshop' = standalone EShop buyflow (deep link: #eshop)
+  const [domain, setDomain] = useState(() => (window.location.hash === '#eshop' ? 'eshop' : null));
 
   // UI state
   const [channel, setChannel] = useState('web');
@@ -243,6 +245,8 @@ function App() {
 
   const handleSelectDomain = (d) => {
     setDomain(d);
+    if (d === 'eshop') window.history.replaceState(null, '', '#eshop');
+    else if (window.location.hash === '#eshop') window.history.replaceState(null, '', window.location.pathname);
     setPayload(null);
     setMetrics(null);
     setQuery('');
@@ -290,6 +294,10 @@ function App() {
     }
   };
 
+  if (domain === 'eshop') {
+    return <EShopApp onExit={() => handleSelectDomain(null)} />;
+  }
+
   // Landing page
   if (!domain) {
     return (
@@ -321,6 +329,21 @@ function App() {
                 </motion.button>
               );
             })}
+            <motion.button
+              className="domain-card domain-card-rose domain-card-wide"
+              onClick={() => handleSelectDomain('eshop')}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="domain-card-icon">
+                <Smartphone size={36} />
+              </div>
+              <h2>EShop Buyflow</h2>
+              <p>iPhone buyflow · Intent → Fit → Line → Extras → Checkout · shop pickup, two lines, port-in, pivot, trade-in</p>
+              <span className="domain-card-cta">Open storefront →</span>
+            </motion.button>
           </div>
           <div className="landing-footer">
             <span>CAIS 2026 · Unified Generative UI PoC</span>
